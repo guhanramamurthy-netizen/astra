@@ -1776,8 +1776,15 @@ async function loadFeed(){
         const r=await fetch(u+sep+'_='+Date.now(),{cache:'no-store'});
         if(!r.ok) continue;
         const txt=await r.text();
-        if(!/^\s*key\s*,/i.test(txt)) continue;      // a 404 page is not a feed
-        if(!applyFeed(parseCSV(txt))) continue;
+        /* Sniff by PARSING, never by pattern-matching the raw text. Google's
+           gviz endpoint quotes every cell, so it answers "key","a","b","c"
+           while a file on disk answers key,a,b,c. A regex that assumed the
+           bare form silently rejected the real feed and she fell back to the
+           board baked into her at build time, which looked like a stale sheet
+           rather than a bug. Parse first, then check the corner cell. */
+        const rows=parseCSV(txt);
+        if(!rows.length || String(rows[0][0]||'').trim().toLowerCase()!=='key') continue;
+        if(!applyFeed(rows)) continue;
         feedHome=u; got=true; break;
       }catch(_){ /* try the next home */ }
     }
