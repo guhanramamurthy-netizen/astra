@@ -1869,9 +1869,13 @@ async function askSweep(kind){
   const now=Date.now();
   if(kind==='deep'){ if(now-lastDeep<DEEP_GAP) return false; }
   else             { if(now-lastLite<LITE_GAP) return false; }
+  /* Both bodies begin with the same instruction, because the commonest way
+     this board goes wrong is not missing something new — it is still showing
+     something he finished. Retire first, then look. */
+  const RETIRE = 'FIRST, before looking for anything new: read the now and week rows currently on the sheet and check each one against his Sent mail. Anything he has already replied to comes off. If his reply created a new obligation — they came back with a date to confirm, a question, a document to send — write that as a new row instead of the old one. Anything where he is only cc and somebody else is the actioner comes off now, and goes to week marked as waiting on that person, or comes off entirely. Then, and only then, look for what is new. ';
   const body = kind==='deep'
-    ? 'Guhan asked for a DEEP sweep. Everything: all mail since the board was written and anything from the past month still awaiting his reply, ninety days of calendar, the news rewritten and verified, a new idea, the readings if it is Monday, and every note he has sent me. Rewrite the whole board.'
-    : 'Guhan asked for a LITE sweep. Mail since the board was written and today and tomorrow in the calendar only. Rewrite the now and week rows and set meta updated. Do not touch news, ideas, readings or topics, and do not web search. Keep it quick.';
+    ? RETIRE + 'Guhan asked for a DEEP sweep. Everything: all mail since the board was written and anything from the past month still awaiting his reply, ninety days of calendar, the news rewritten and verified, a new idea, the readings if it is Monday, and every note he has sent me. Rewrite the whole board.'
+    : RETIRE + 'Guhan asked for a LITE sweep. Mail since the board was written and today and tomorrow in the calendar only. Rewrite the now and week rows and set meta updated. Do not touch news, ideas, readings or topics, and do not web search. Keep it quick.';
   const ok=await sendNote(body,kind);
   if(ok){
     if(kind==='deep') lastDeep=now; else lastLite=now;
