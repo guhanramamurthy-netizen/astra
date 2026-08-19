@@ -156,6 +156,15 @@ main::-webkit-scrollbar{display:none}
 .card .d{display:none;font-size:13.5px;line-height:1.65;color:var(--mut);margin-top:10px;
   padding-top:10px;border-top:1px solid var(--line)}
 .card.on .d{display:block}
+/* the retire control. Only reachable on an open card, so it cannot be hit
+   while scrolling past, and it sits under the detail rather than beside the
+   title where a thumb would find it by accident. */
+.card .act{display:none;margin-top:13px;padding-top:11px;border-top:1px solid var(--line)}
+.card.on .act{display:flex;gap:9px;align-items:center}
+.card .dn{font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--faint);border:1px solid var(--line);padding:8px 13px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.card .dn:active{color:var(--cc);border-color:var(--cc)}
 
 /* countdown rail */
 .strip{display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;padding-bottom:14px;margin:0 -15px;padding-left:15px;padding-right:15px}
@@ -271,10 +280,13 @@ input[type=text]:focus{border-color:var(--ac)}
 /* toast */
 #toast{position:fixed;left:50%;bottom:calc(var(--footh,96px) + 14px);
   transform:translate(-50%,14px);z-index:70;opacity:0;pointer-events:none;
-  background:rgba(10,13,18,.96);border:1px solid var(--line2);padding:9px 16px;
+  background:rgba(10,13,18,.96);border:1px solid var(--line2);padding:10px 16px;
+  max-width:90vw;text-align:center;
   font:500 11.5px/1 var(--mono);letter-spacing:.8px;color:var(--ink);
   transition:opacity .25s,transform .25s;max-width:82vw;text-align:center}
 #toast.on{opacity:1;transform:translate(-50%,0)}
+#toast .tact{margin-left:14px;padding-left:14px;border-left:1px solid var(--line2);
+  color:var(--ac);cursor:pointer;font-weight:600;letter-spacing:1.6px;text-transform:uppercase}
 
 #ptr{position:fixed;left:50%;top:calc(112px + env(safe-area-inset-top));transform:translate(-50%,0);
   z-index:15;font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
@@ -1725,15 +1737,19 @@ let pending=[];
 
 function noteReady(){ return /^https:\/\/docs\.google\.com\/forms\//.test(NOTE_FORM) && /^entry\./.test(NOTE_FIELD); }
 
+/* Some kinds say their own thing, with their own undo. Their toast must not be
+   stamped on a moment later by this one when the fetch resolves. */
+const QUIET_KINDS=/^(done|undone)$/;
 async function sendNote(text,kind){
   const item={t:text,k:kind||'note',at:new Date().toISOString()};
+  const quiet=QUIET_KINDS.test(item.k);
   if(!noteReady()){ pending.push(item); toast('held — her channel isn\'t open yet'); return false; }
   const body=new FormData();
   body.append(NOTE_FIELD, `[${item.k}] ${item.at}\n${item.t}`);
   if(NOTE_EMAIL) body.append('emailAddress', NOTE_EMAIL);   // the form requires it
   try{
     await fetch(NOTE_FORM,{method:'POST',mode:'no-cors',body});
-    toast('sent to Claude');
+    if(!quiet) toast('sent to Claude');
     return true;
   }catch(e){ pending.push(item); toast('no signal — held for later'); return false; }
 }
@@ -1784,6 +1800,9 @@ function applyFeed(rows){
   ['rehab','goals','cv','visa'].forEach(k=>{ if(topic[k]) KB[k]=topic[k]; });
   if(topic.health) KB.health_note=topic.health;
   if(lift.length){ KB.lift=lift; liftI=Math.floor(Math.random()*lift.length); }
+  /* Prune against the rows the sheet actually still carries — this is the only
+     place that sees them unfiltered — then hide whatever he has retired. */
+  try{ donePrune(now.concat(week)); applyDone(); }catch(_){ }
   return true;
 }
 
@@ -1967,10 +1986,23 @@ async function refreshNow(loud){
    the next open. Meanwhile the page shows it on the board itself, so he
    never has to take it on faith that it went anywhere. */
 let toastT=null;
-function toast(msg){
+/* One optional action, because taking something off the board by accident has
+   to be recoverable within the few seconds you notice it. */
+function toast(msg,actionLabel,fn){
   const el=document.getElementById('toast'); if(!el) return;
-  el.textContent=msg; el.classList.add('on');
-  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2600);
+  el.textContent='';
+  el.appendChild(document.createTextNode(String(msg)));
+  if(actionLabel && typeof fn==='function'){
+    const a=document.createElement('span');
+    a.className='tact'; a.textContent=actionLabel;
+    a.onclick=e=>{ e.stopPropagation(); el.classList.remove('on'); fn(); };
+    el.appendChild(a);
+    el.style.pointerEvents='auto';
+  } else el.style.pointerEvents='none';
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>{ el.classList.remove('on'); el.style.pointerEvents='none'; },
+                    actionLabel?6200:2600);
 }
 /* ══════════ TABS AND PANES ══════════ */
 const days=d=>Math.ceil((new Date(d+"T00:00:00")-new Date(new Date().toDateString()))/864e5);
@@ -2018,11 +2050,16 @@ function evStrip(){
       <div class="n">${esc(e.n)}</div><div class="w">${esc(e.w)}</div></div>`;
   }).join('')+`</div>`;
 }
+/* 'hot' is a view, not a store — it is hots(), not KB.hot. The click handler
+   used to look up KB['hot'], get undefined, and quietly do nothing. */
+function listFor(k){ return k==='hot' ? hots() : (KB[k]||[]); }
+
 function cards(arr,key){
   return arr.map((it,i)=>`<article class="card${it.lvl==='note'?' note':''}" style="--cc:${it.lvl==='hot'?'var(--red)':it.lvl==='note'?'var(--ac)':'var(--gold)'}" data-k="${key}" data-i="${i}">
     <div class="k">${it.lvl==='hot'?'PRIORITY':it.lvl==='note'?'<b>YOURS</b> \u00b7 NOT FILED YET':'STANDING'}<i>${String(i+1).padStart(2,'0')}</i></div>
     <div class="t">${esc(it.t)}</div>
-    <div class="d">${esc(it.d)}</div></article>`).join('');
+    <div class="d">${esc(it.d)}</div>${it.lvl==='note'?'':
+    `<div class="act"><span class="dn" data-done="${key}:${i}">mark done</span></div>`}</article>`).join('');
 }
 function head(label,count,readKey){
   return `<div class="eyebrow">${label}<span class="ln"></span>`+
@@ -2245,7 +2282,8 @@ function telemetry(){
 }
 
 function paintAll(){
-  /* anything he typed himself goes back on before anything is drawn */
+  /* anything he has retired comes off, then anything he typed goes back on */
+  if(typeof applyDone==='function') applyDone();
   if(typeof pendMerge==='function') pendMerge();
   TABS.forEach(t=>{ const el=document.getElementById('pane-'+t.k); if(el) el.innerHTML=RENDER[t.k](); });
   telemetry();
@@ -2265,7 +2303,8 @@ function talkRender(){
   const el=document.getElementById('tthread'); if(!el) return;
   if(!THREAD.length){
     el.innerHTML=`<div id="tempty">Ask her anything on the board, or just tell her something.<br><br>
-      <b>note the vendor is coming Tuesday</b><br><b>what should I do first</b><br><b>read me today's idea</b></div>`;
+      <b>what should I do first</b><br><b>note the vendor is coming Tuesday</b><br><b>done the Pathshala flyer</b><br><b>read me today's idea</b><br><br>
+      Open any card and tap <b>mark done</b> to take it off the board.</div>`;
     return;
   }
   el.innerHTML=THREAD.map((m,i)=> m.mine
@@ -2284,7 +2323,10 @@ function closeTalk(){ talkOpen=false; document.getElementById('talk').classList.
 function talkCount(){ const el=document.getElementById('tTalk');
   if(el) el.textContent = THREAD.length? 'talk '+THREAD.filter(m=>!m.mine).length : 'talk'; }
 
-function bubble(html,mine){
+/* quiet: keep it in the thread so it can be replayed, but do not slide the
+   sheet up. Tapping a card is not asking a question — and the sheet would
+   cover the very card you just opened, along with its mark-done control. */
+function bubble(html,mine,quiet){
   html = mine ? String(html) : you(html);       // her half is addressed to whoever owns her
   const hl=document.getElementById('hline');
   if(!mine && hl) hl.textContent=String(html).replace(/<[^>]*>/g,'').split(/[.!?]/)[0].slice(0,72);
@@ -2293,6 +2335,7 @@ function bubble(html,mine){
   talkCount();
   /* His line goes up the moment he sends it. It used to sit invisibly in the
      thread until she answered, so pressing send looked like nothing happening. */
+  if(quiet){ talkCount(); if(talkOpen) talkRender(); return; }
   openTalk();
 }
 function respond(html,spoken,feel){
@@ -2402,7 +2445,7 @@ function topicSay(k,label){
 }
 
 /* ── the note channel: she can be told things, not only asked ── */
-const NOTE_RE=/^(note|remember|tell claude|log|add|remind me|update|i did|i've done|done|book|call|buy|ask|new task)\b/i;
+const NOTE_RE=/^(note|remember|tell claude|log|add|remind me|update|i did|book|call|buy|ask|new task)\b/i;
 
 /* ── WHY A NOTE APPEARS BEFORE CLAUDE HAS SEEN IT ──
    Everything typed here goes to Claude, and Claude rewrites the board — but
@@ -2445,6 +2488,63 @@ function pendMerge(){
   }catch(_){ }
 }
 
+/* ── DONE ──
+   He can now take a row off the board himself. That has to be true in three
+   places at three different speeds, and the page is honest about all three.
+
+     immediately   this device, because the row is filtered out of KB and
+                   remembered in localStorage, so a reload does not bring it back
+     ~5 minutes    every other device, because the Apps Script bridge reads the
+                   done marks out of the responses sheet on its own tick and
+                   deletes those rows from the feed sheet
+     next drain    permanently, because Claude sees the same mark and stops
+                   writing that row at all
+
+   The middle one is what makes "reflected everywhere" true rather than a
+   local trick. If the bridge is ever off, the page still hides the row here
+   and the drain still catches up — it degrades to slow, not to wrong. */
+const DONE_KEY='astra.done.v1';
+let DONE=[];
+try{ DONE=JSON.parse(localStorage.getItem(DONE_KEY)||'[]')||[]; }catch(_){ DONE=[]; }
+function doneSave(){ try{ localStorage.setItem(DONE_KEY,JSON.stringify(DONE)); }catch(_){ } }
+function doneKey(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function isDone(it){ const k=doneKey(it&&it.t); return !!k && DONE.some(d=>d.k===k); }
+
+/* Called ONLY from applyFeed, against the rows exactly as the sheet gave them.
+   Once the sheet has stopped carrying a row there is nothing left to hide, so
+   the mark is dropped and localStorage does not grow forever. Never call this
+   with an already-filtered list or it would forget every mark at once and the
+   rows would all come back. */
+function donePrune(rawRows){
+  if(!DONE.length) return;
+  const live=new Set(rawRows.map(x=>doneKey(x.t)));
+  const n=DONE.length;
+  DONE=DONE.filter(d=>live.has(d.k));
+  if(DONE.length!==n) doneSave();
+}
+/* Safe to call as often as you like. */
+function applyDone(){
+  if(!DONE.length) return;
+  KB.now =(KB.now ||[]).filter(x=>x.lvl==='note'||!isDone(x));
+  KB.week=(KB.week||[]).filter(x=>!isDone(x));
+}
+
+function markDone(it){
+  if(!it||!it.t) return;
+  const title=String(it.t);
+  DONE.unshift({k:doneKey(title),t:title,at:Date.now()});
+  doneSave(); applyDone();
+  if(typeof paintAll==='function') paintAll();
+  sendNote(`DONE :: ${title} :: He marked this done on the board himself. Take it off the sheet and do not write it again unless something genuinely new reopens it.`,'done');
+  toast('done \u00b7 off everywhere in 5 min','undo',()=>undoDone(title));
+}
+function undoDone(title){
+  const k=doneKey(title);
+  DONE=DONE.filter(d=>d.k!==k); doneSave();
+  sendNote(`UNDO DONE :: ${title} :: He put this back on the board. Ignore the done mark for it and keep the row.`,'undone');
+  loadFeed().then(()=>{ paintAll(); toast('back on the board'); });
+}
+
 function takeNote(text,kind){
   const t=String(text||'').trim(); if(!t) return;
   sendNote(t,kind||'note');
@@ -2462,7 +2562,46 @@ function takeNote(text,kind){
     `Noted, Guhan. It is already on your board, at the top of today, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. He reads these six times a day, and the next time he does, it comes back written properly.`,'warm');
 }
 
+const DONE_RE=/^(done|finished|completed|sorted|handled|cleared)\b/i;
+
+/* Saying it should work as well as tapping it. "done the flyer" finds the row
+   that best matches and retires it; if nothing on the board matches, it falls
+   through to an ordinary note rather than silently doing nothing. */
+function doneBySpeech(q){
+  const said=q.replace(DONE_RE,'').trim();
+  const rows=[...(KB.now||[]).filter(x=>x.lvl!=='note'),...(KB.week||[])];
+  if(!said){
+    setMode('work');
+    respond(`<b>Done with which one, Guhan?</b><br><br>`+
+      rows.slice(0,5).map(r=>`<b>${esc(r.t)}</b>`).join('<br>')+
+      `<br><br>Say <b>done</b> and a few words from it, or open its card and tap <b>mark done</b>.`,
+      `Done with which one, Guhan? Say done and a few words from it, or open its card and tap mark done.`,'warm');
+    return;
+  }
+  const words=doneKey(said).split(' ').filter(w=>w.length>3);
+  /* The title is what he is naming. The description is only a tie-breaker, and
+     it must never win on its own — "done the flyer" once matched a row whose
+     title was about a clash, purely because the flyer was mentioned in its
+     body. So a match has to land in the title to count at all. */
+  let best=null,score=0,titleHit=0;
+  if(words.length) rows.forEach(r=>{
+    const inT=words.filter(w=>doneKey(r.t).includes(w)).length/words.length;
+    const inD=words.filter(w=>doneKey(r.d).includes(w)).length/words.length;
+    const sc=inT+inD*0.15;
+    if(sc>score){ score=sc; titleHit=inT; best=r; }
+  });
+  if(best && titleHit>=0.5){
+    markDone(best);
+    setMode('work'); setTab('today');
+    respond(`<b>Done, and off the board.</b><br><br>${esc(best.t)}<br><br><span style="color:var(--mut)">Gone from every list here, off the sheet within five minutes, and Claude has been told not to write it again.</span>`,
+      `Done, Guhan. ${best.t} is off the board. It is gone from every list here, it comes off the sheet within five minutes, and Claude has been told not to write it again.`,'bright');
+    return;
+  }
+  takeNote(said||q,'note');
+}
+
 const ROUTES=[
+ [DONE_RE, q=>doneBySpeech(q)],
  [/^(note|remember|tell claude|log this|log|remind me)\b/i, q=>takeNote(q.replace(NOTE_RE,'').trim()||q,'note')],
  [/(deep sweep|full sweep|sweep everything|sweep it all|proper sweep|do a deep|everything you have)/i, ()=>deepSweep()],
  [/(sweep|quick sweep|catch me up|catch up|refresh|update yourself|sync|are you current|up to date|anything new|what'?s new)/i, ()=>refreshNow(true)],
@@ -2515,8 +2654,8 @@ const ROUTES=[
    `I'm Astra. I hold your commitments, your deadlines and your goals, I bring you one new idea each morning, and when the day has been long I can slow you down again. Everything I know is current as of ${KB.updated}.`,'warm')],
  [/(thank|thanks|bye)/i, ()=>respond(`Any time, Guhan. I'll be right here.`,null,'warm')],
  [/(help|what can you|commands)/i, ()=>respond(
-   `Ask me for your <b>brief</b>, what's <b>urgent</b>, your <b>week</b>, your <b>deadlines</b>, or today's <b>idea</b>. For the work: the <b>rehab centre</b>, your <b>CV</b>, the <b>Korea visa</b>, your <b>goals</b>, your <b>health</b>.<br><br>Say <b>breathe</b>, <b>reset</b>, <b>sleep</b> or <b>motivate me</b> when you need the other thing.<br><br>And you can just tell me something — start with <b>note</b> and it goes to Claude.`,
-   `Ask me for your brief, what's urgent, your week, your deadlines, or today's idea. For the work, the rehab centre, your CV, the Korea visa, your goals, your health. Say breathe, reset, sleep or motivate me when you need the other thing. And you can just tell me something. Start with note, and it goes to Claude.`,'warm')]
+   `Ask me for your <b>brief</b>, what's <b>urgent</b>, your <b>week</b>, your <b>deadlines</b>, or today's <b>idea</b>. For the work: the <b>rehab centre</b>, your <b>CV</b>, the <b>Korea visa</b>, your <b>goals</b>, your <b>health</b>.<br><br>Say <b>breathe</b>, <b>reset</b>, <b>sleep</b> or <b>motivate me</b> when you need the other thing.<br><br>And you can just tell me something — start with <b>note</b> and it goes to Claude.<br><br>When you have finished something, open its card and tap <b>mark done</b>, or just say <b>done</b> and the rest of it. It leaves every list here at once and comes off the sheet within five minutes.`,
+   `Ask me for your brief, what's urgent, your week, your deadlines, or today's idea. For the work, the rehab centre, your CV, the Korea visa, your goals, your health. Say breathe, reset, sleep or motivate me when you need the other thing. And you can just tell me something, starting with note. And when you have finished something, open its card and tap mark done, or just say done and the rest of it. It leaves every list here at once and comes off the sheet within five minutes.`,'warm')]
 ];
 
 function handle(q){
@@ -2625,6 +2764,15 @@ document.addEventListener('click',e=>{
   if(go){ setTab(go.dataset.go,true); return; }
   const q=e.target.closest('[data-q]');
   if(q){ handle(q.dataset.q); return; }
+  /* before the generic card handler, or opening the card would swallow it */
+  const dn=e.target.closest('[data-done]');
+  if(dn){
+    e.stopPropagation();
+    const [k,i]=dn.dataset.done.split(':');
+    const it=listFor(k)[+i];
+    if(it) markDone(it);
+    return;
+  }
   const rd=e.target.closest('[data-read]');
   if(rd){ const k=rd.dataset.read;
     if(k==='events') return countdown();
@@ -2643,8 +2791,17 @@ document.addEventListener('click',e=>{
   if(c){ const open=c.classList.contains('on');
     document.querySelectorAll('.card.on').forEach(x=>{ if(x!==c) x.classList.remove('on'); });
     if(!open){ c.classList.add('on');
-      const arr=KB[c.dataset.k]; const it=arr&&arr[+c.dataset.i];
-      if(it){ setMode('work'); speak(it.t?`${it.t}. ${it.d||it.b||''}`:`${it.h}. ${it.b}`); bubble(it.t||it.h); }
+      const arr=listFor(c.dataset.k); const it=arr&&arr[+c.dataset.i];
+      if(it){ setMode('work'); speak(it.t?`${it.t}. ${it.d||it.b||''}`:`${it.h}. ${it.b}`);
+              bubble(it.t||it.h,false,true); }   // quiet: leave the board visible
+      /* Expanding a card near the bottom pushes its detail, and the mark-done
+         control with it, under the footer. Bring it back up once the layout
+         has settled — but only when it is actually out of sight. */
+      requestAnimationFrame(()=>{
+        const r=c.getBoundingClientRect();
+        const foot=(document.querySelector('footer')||{}).offsetHeight||0;
+        if(r.bottom > innerHeight - foot - 8) c.scrollIntoView({block:'end',behavior:'smooth'});
+      });
     } else { c.classList.remove('on'); speechSynthesis.cancel(); speaking=false; }
   }
 });
@@ -2684,6 +2841,7 @@ document.querySelector('main').addEventListener('scroll',e=>{ scrollY=e.target.s
 /* ══════════ INPUT ══════════ */
 const QK=[["Brief","brief"],["Urgent","urgent"],["Today's idea","idea"],["This week's reading","learn"],["Deadlines","countdown"],
   ["Motivate me","motivate"],["Breathe","breathe"],["Reset · 60s","reset"],["Wind down","wind down"],["What's new","refresh"],["Deep sweep","deep sweep"]];
+/* the empty-thread hint should mention it, or he will never find it */
 const qk=document.getElementById('qk');
 QK.forEach(([l,q])=>{const b=document.createElement('div');b.className='qc';b.textContent=l;b.onclick=()=>handle(q);qk.appendChild(b);});
 
