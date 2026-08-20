@@ -1907,8 +1907,8 @@ async function askSweep(kind){
 async function deepSweep(){
   const ok=await askSweep('deep');
   if(ok){
-    respond(`<b>Deep sweep asked for, Guhan.</b><br><br>Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one.<br><br><span style="color:var(--mut)">It runs on the next drain. Those are six a day, about every three hours, so the board is rewritten well within that.</span>`,
-      `Deep sweep asked for, Guhan. Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one. It runs on the next drain. Those are six a day, about every three hours, so the board is rewritten well within that.`,'bright');
+    respond(`<b>Deep sweep asked for, Guhan.</b><br><br>Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one.<br><br><span style="color:var(--mut)">It runs at quarter past six tomorrow morning, which is now the only run of the day, and the whole board is rewritten then.</span>`,
+      `Deep sweep asked for, Guhan. Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one. It runs at quarter past six tomorrow morning, which is now the only run of the day, and the whole board is rewritten then.`,'bright');
   } else {
     respond(`<b>One is already running.</b><br><br>I asked for a deep sweep less than an hour ago and it costs enough that I will not ask twice. The quick refresh is always available.`,
       `One is already running, Guhan. I asked for a deep sweep less than an hour ago, and it costs enough that I will not ask twice. The quick refresh is always available.`,'wry');
@@ -1943,10 +1943,10 @@ async function refreshNow(loud){
   /* ask for a real sweep behind the scenes, then tell him the truth about it */
   const swept=await askSweep('lite');
   const sweepHtml=swept
-    ? `<br><br><span style="color:var(--mut)">I've also asked for a quick sweep, your mail and today's calendar, back to when this board was written.</span>`
+    ? `<br><br><span style="color:var(--mut)">I've also asked for a sweep of your mail and calendar. That lands at quarter past six tomorrow morning, which is the only run there is now.</span>`
     : '';
   const sweepSay=swept
-    ? ` I have also asked for a quick sweep of your mail and today's calendar, back to when this board was written.`
+    ? ` I have also asked for a sweep of your mail and calendar. That lands at quarter past six tomorrow morning, which is the only run there is now.`
     : '';
 
   if(fresh.length){
@@ -1965,11 +1965,11 @@ async function refreshNow(loud){
     respond(`<b>Nothing had changed on the sheet, Guhan.</b><br><br>`+
       `This board was written ${esc(KB.updated)}, so anything that arrived after that was never on it.`+
       (swept
-        ? `<br><br>I've asked for a sweep now, mail and today's calendar, everything since then. Say <b>deep sweep</b> if you want the news, the reading and a new idea rewritten too.`
+        ? `<br><br>I've asked for a sweep. It lands at quarter past six tomorrow morning — that is the whole schedule now, one run a day. Anything you tell me before then goes with it.`
         : `<br><br>I asked for a sweep a few minutes ago, so one is already on its way.`),
       `Nothing had changed on the sheet, Guhan. This board was written ${KB.updated}, so anything that arrived after that was never on it. `+
       (swept
-        ? `I have asked for a sweep now, your mail and today's calendar, everything since then. Say deep sweep if you want the news, the reading and a new idea rewritten too.`
+        ? `I have asked for a sweep. It lands at quarter past six tomorrow morning. That is the whole schedule now, one run a day, so anything you tell me before then goes with it.`
         : `I asked for a sweep a few minutes ago, so one is already on its way.`),'care');
   } else {
     respond(`<b>Nothing new, Guhan.</b><br><br>I've just checked. Everything I'm holding is current as of ${esc(KB.updated)}. ${KB.now.length} still need you today.`+sweepHtml,
@@ -1980,11 +1980,14 @@ async function refreshNow(loud){
 
 /* ══════════ THE WAY BACK — anything you tell her reaches Claude ══════════
    The page holds no keys and no account. What you type is posted to a Google
-   Form that only Guhan owns; the responses land in a sheet, and the inbox
-   task drains that sheet into the Task Log, the Profile and back into this
-   feed six times a day. If there is no signal the note is held and sent on
-   the next open. Meanwhile the page shows it on the board itself, so he
-   never has to take it on faith that it went anywhere. */
+   Form that only Guhan owns; the responses land in a sheet, and one task at
+   quarter past six each morning drains that sheet into the Task Log, the
+   Profile and back into this feed. That is the whole schedule now — he cut it
+   from fourteen runs a day to one on 20 August, so this page has to carry the
+   feeling of immediacy on its own. It does: a note appears on the board the
+   instant he types it, and a row he retires disappears the instant he taps,
+   with the sheet catching up inside five minutes through the bridge. If there
+   is no signal the note is held and sent on the next open. */
 let toastT=null;
 /* One optional action, because taking something off the board by accident has
    to be recoverable within the few seconds you notice it. */
@@ -2558,8 +2561,8 @@ function takeNote(text,kind){
   if(typeof paintAll==='function') paintAll();
   setMode('work'); setTab('today');
   const short=t.length>90?t.slice(0,88)+'\u2026':t;
-  respond(`<b>Noted \u2014 and it is already on your board.</b><br><br>\u201c${esc(short)}\u201d<br><br>Top of <b>Today</b>, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. He reads these six times a day, about every three hours, and the next time he does it comes back written properly.`,
-    `Noted, Guhan. It is already on your board, at the top of today, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. He reads these six times a day, and the next time he does, it comes back written properly.`,'warm');
+  respond(`<b>Noted \u2014 and it is already on your board.</b><br><br>\u201c${esc(short)}\u201d<br><br>Top of <b>Today</b>, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. Claude reads these once each morning, at quarter past six, and it comes back written properly then.`,
+    `Noted, Guhan. It is already on your board, at the top of today, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. He reads these once each morning, at quarter past six, and it comes back written properly then.`,'warm');
 }
 
 const DONE_RE=/^(done|finished|completed|sorted|handled|cleared)\b/i;
