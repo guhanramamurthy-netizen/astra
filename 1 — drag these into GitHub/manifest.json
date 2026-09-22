@@ -1,0 +1,25 @@
+{
+  "name": "Astra — Dr. Guhan Ramamurthy",
+  "short_name": "Astra",
+  "description": "What needs you today, this week, and what is ahead.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04060a",
+  "theme_color": "#04060a",
+  "icons": [
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Today","short_name":"Today","description":"What needs you today, and this week",
+     "url":"./?tab=today&quick=1","icons":[{"src":"sc-today.png","sizes":"192x192","type":"image/png"}]},
+    {"name":"Urgent","short_name":"Urgent","description":"Only what is burning",
+     "url":"./?tab=urgent&quick=1","icons":[{"src":"sc-urgent.png","sizes":"192x192","type":"image/png"}]},
+    {"name":"Horizon","short_name":"Horizon","description":"Every date ahead, counted down",
+     "url":"./?tab=horizon&quick=1","icons":[{"src":"sc-horizon.png","sizes":"192x192","type":"image/png"}]},
+    {"name":"Everything","short_name":"All","description":"The whole board on one screen",
+     "url":"./?tab=board&quick=1","icons":[{"src":"sc-all.png","sizes":"192x192","type":"image/png"}]}
+  ]
+}

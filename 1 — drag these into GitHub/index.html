@@ -1,0 +1,3127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Astra">
+<meta name="theme-color" content="#04060a">
+<link rel="manifest" href="manifest.json">
+<link id="ic" rel="apple-touch-icon">
+<title>ASTRA · Dr. Guhan Ramamurthy</title>
+<style>
+:root{
+  --bg:#04060a; --ink:#f4efe8; --mut:#9a9186; --faint:#5f594f;
+  --line:rgba(255,255,255,.085); --line2:rgba(255,255,255,.16);
+  --panel:rgba(255,255,255,.028);
+  --amber:#ffdeba; --red:#ff7a6b; --teal:#7fe0d0; --violet:#b9a6ff;
+  --gold:#ffc86a; --bone:#e8e2d8; --grn:#7fe0a8;
+  --ac:var(--amber); --ac2:176,196,255;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);
+  font:400 15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;height:100dvh;overflow:hidden;position:relative}
+
+/* ══ the sky: photographic plate, procedural canvas, grade, grain ══ */
+#plate,#plate2{position:fixed;inset:0;z-index:0;background:#04060a center/cover no-repeat;
+  opacity:0;transition:opacity 1.05s cubic-bezier(.4,0,.2,1)}
+#plate2{z-index:0}
+#plate.on,#plate2.on{opacity:1}
+#sky{position:fixed;inset:0;z-index:1;width:100%;height:100%;opacity:.95}
+#grade{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:
+   linear-gradient(180deg,rgba(4,6,10,.93) 0%,rgba(4,6,10,.48) 20%,rgba(4,6,10,.14) 42%,rgba(4,6,10,.30) 62%,rgba(4,6,10,.84) 84%,rgba(4,6,10,.97) 100%),
+   radial-gradient(105% 52% at 10% 6%,rgba(4,6,10,.80) 0%,rgba(4,6,10,0) 64%)}
+#grain{position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.55'/></svg>");
+  animation:grain 1.1s steps(3) infinite}
+@keyframes grain{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(0,0)}}
+.bar{position:fixed;left:0;right:0;height:env(safe-area-inset-top);background:#000;z-index:40}
+.bar.b{top:auto;bottom:0;height:env(safe-area-inset-bottom)}
+
+/* ══ header ══ */
+header{position:relative;z-index:20;flex:0 0 auto;
+  padding:calc(9px + env(safe-area-inset-top)) 15px 0}
+.hrow{display:flex;align-items:center;gap:12px}
+#orbBox{position:relative;width:52px;height:52px;flex:0 0 auto;cursor:pointer}
+#fx{position:absolute;inset:0;width:100%;height:100%}
+.hmeta{flex:1;min-width:0}
+.hname{font:650 10px/1 var(--mono);letter-spacing:4.2px;color:var(--ac);
+  text-transform:uppercase;transition:color .8s;display:flex;align-items:center;gap:7px}
+.hname::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,currentColor,transparent);opacity:.4}
+.hline{font-size:14px;font-weight:530;line-height:1.3;margin-top:5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hclock{font:400 10.5px/1.45 var(--mono);color:var(--mut);text-align:right;flex:0 0 auto}
+#hago{color:var(--faint)}
+#sync{position:relative;width:34px;height:34px;flex:0 0 auto;padding:0;border-radius:50%;
+  cursor:pointer;border:1px solid var(--line2);background:rgba(255,255,255,.04);
+  color:var(--ac);display:flex;align-items:center;justify-content:center;
+  transition:border-color .2s,color .2s,transform .12s}
+#sync svg{width:16px;height:16px;display:block}
+#sync:active{transform:scale(.9)}
+#sync.spin svg{animation:spin .8s cubic-bezier(.5,.1,.4,.9) infinite}
+#sync.ok{color:var(--grn);border-color:var(--grn)}
+#sync.bad{color:var(--red);border-color:var(--red)}
+#sync.stale::after{content:"";position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 0 2px #04060a}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* telemetry strip */
+.tel{display:flex;gap:0;margin:9px 0 0;font:400 9.5px/1 var(--mono);
+  letter-spacing:1.1px;text-transform:uppercase;color:var(--faint);
+  border-top:1px solid var(--line);padding-top:7px;overflow:hidden}
+.tel span{flex:0 0 auto;padding-right:12px;margin-right:12px;border-right:1px solid var(--line);
+  white-space:nowrap}
+.tel span:last-child{border:0}
+.tel b{color:var(--ac);font-weight:600}
+.tel .el{color:var(--ac);opacity:.85}
+
+/* ══ tab rail ══ */
+nav{position:relative;z-index:20;flex:0 0 auto;margin-top:8px;
+  border-bottom:1px solid var(--line)}
+.rail{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:0 15px}
+.rail::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;position:relative;padding:8px 11px 9px;cursor:pointer;
+  font:600 9px/1 var(--mono);letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--faint);transition:color .25s;background:none;border:0;
+  display:flex;flex-direction:column;align-items:center;gap:5px}
+.tab svg{width:19px;height:19px;display:block;stroke:currentColor;fill:none;
+  stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .32s cubic-bezier(.2,.7,.3,1),filter .3s}
+.tab.on svg{transform:translateY(-1px) scale(1.12);filter:drop-shadow(0 0 8px var(--tc))}
+.tab:active svg{transform:scale(.9)}
+.tab .dot{position:absolute;top:6px;right:6px;width:5px;height:5px;border-radius:50%;
+  background:var(--red);opacity:0;transition:.3s}
+.tab.alert .dot{opacity:1}
+.tab.on{color:var(--tc)}
+.tab.on::after{content:"";position:absolute;left:9px;right:9px;bottom:-1px;height:2px;
+  background:var(--tc);box-shadow:0 0 12px var(--tc);border-radius:2px}
+
+/* ══ scroll body ══ */
+main{position:relative;z-index:20;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
+  padding:16px 15px 10px;scrollbar-width:none}
+main::-webkit-scrollbar{display:none}
+.wrap{max-width:620px;margin:0 auto}
+.pane{display:none}
+.pane.on{display:block}
+.pane.on > *{animation:flt .62s cubic-bezier(.16,.8,.28,1) both}
+.pane.on > *:nth-child(1){animation-delay:.00s}
+.pane.on > *:nth-child(2){animation-delay:.045s}
+.pane.on > *:nth-child(3){animation-delay:.09s}
+.pane.on > *:nth-child(4){animation-delay:.13s}
+.pane.on > *:nth-child(5){animation-delay:.17s}
+.pane.on > *:nth-child(6){animation-delay:.21s}
+.pane.on > *:nth-child(7){animation-delay:.245s}
+.pane.on > *:nth-child(8){animation-delay:.28s}
+.pane.on > *:nth-child(9){animation-delay:.31s}
+.pane.on > *:nth-child(n+10){animation-delay:.34s}
+@keyframes flt{from{opacity:0;transform:translateY(16px) scale(.985);filter:blur(3px)}
+  to{opacity:1;transform:none;filter:blur(0)}}
+@media (prefers-reduced-motion:reduce){ .pane.on > *{animation:none} }
+
+/* ══ HUD primitives ══ */
+.eyebrow{font:600 9.5px/1 var(--mono);letter-spacing:2.6px;text-transform:uppercase;
+  color:var(--ac);display:flex;align-items:center;gap:10px;margin:22px 0 12px}
+.pane > .eyebrow:first-child{margin-top:0}
+.eyebrow .ln{flex:1;height:1px;background:var(--line)}
+.eyebrow .c{color:var(--faint);letter-spacing:1.4px;flex:0 0 auto}
+.eyebrow .rd{color:var(--faint);letter-spacing:1.4px;flex:0 0 auto;cursor:pointer;
+  border:1px solid var(--line);padding:4px 9px}
+.eyebrow .rd:active{color:var(--ac);border-color:var(--ac)}
+
+.card{position:relative;background:var(--panel);border:1px solid var(--line);
+  padding:14px 15px;margin-bottom:9px;cursor:pointer;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);transition:.18s}
+.card::before,.card::after{content:"";position:absolute;width:9px;height:9px;
+  border:1px solid var(--cc,var(--ac));opacity:.65;transition:.2s}
+.card::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.card::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.card:active{background:rgba(255,255,255,.06)}
+.card.on{border-color:var(--line2);background:rgba(255,255,255,.055)}
+.card.note{border-style:dashed}
+.card.note .k{color:var(--ac)}
+.card.note .k b{font-weight:600;animation:pend 1.8s ease-in-out infinite}
+@keyframes pend{0%,100%{opacity:.45}50%{opacity:1}}
+.card.on::before,.card.on::after{width:15px;height:15px;opacity:1}
+.card .k{font:600 9px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--cc,var(--ac));opacity:.85;margin-bottom:7px;display:flex;gap:8px;align-items:center}
+.card .k i{font-style:normal;color:var(--faint);letter-spacing:1.2px}
+.card .t{font-size:14.5px;font-weight:550;line-height:1.38}
+.card .d{display:none;font-size:13.5px;line-height:1.65;color:var(--mut);margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line)}
+.card.on .d{display:block}
+/* the retire control. Only reachable on an open card, so it cannot be hit
+   while scrolling past, and it sits under the detail rather than beside the
+   title where a thumb would find it by accident. */
+.card .act{display:none;margin-top:13px;padding-top:11px;border-top:1px solid var(--line)}
+.card.on .act{display:flex;gap:9px;align-items:center}
+.card .dn{font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--faint);border:1px solid var(--line);padding:8px 13px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.card .dn:active{color:var(--cc);border-color:var(--cc)}
+
+/* countdown rail */
+.strip{display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;padding-bottom:14px;margin:0 -15px;padding-left:15px;padding-right:15px}
+.strip::-webkit-scrollbar{display:none}
+.ev{flex:0 0 auto;width:134px;min-height:112px;padding:11px 12px 12px;cursor:pointer;position:relative;
+  background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.ev::before{content:"";position:absolute;top:-1px;left:-1px;width:22px;height:2px;background:var(--evc)}
+.ev b{font:300 30px/.9 var(--mono);color:var(--evc);letter-spacing:-1px}
+.ev i{font:600 8.5px/1 var(--mono);font-style:normal;letter-spacing:1.6px;
+  text-transform:uppercase;color:var(--faint);margin-left:5px}
+.ev .n{font-size:12px;font-weight:560;margin-top:9px;line-height:1.32;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ev .w{font:400 9.5px/1.3 var(--mono);color:var(--faint);margin-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* big stat block */
+.stat{display:flex;align-items:baseline;gap:9px;padding:12px 0 11px;border-bottom:1px solid var(--line)}
+.stat .v{font:200 34px/1 var(--mono);letter-spacing:-1.4px;color:var(--ac);flex:0 0 auto}
+.stat .u{font:600 10px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--faint)}
+.stat .r{margin-left:auto;text-align:right;font:400 9.5px/1.4 var(--mono);color:var(--mut);flex:1 1 auto;padding-left:8px}
+
+/* progress meter */
+.meter{margin:14px 0 4px}
+.meter .lab{display:flex;justify-content:space-between;font:600 9.5px/1 var(--mono);
+  letter-spacing:1.8px;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+.meter .lab b{color:var(--ac);font-weight:600}
+.meter .track{height:3px;background:rgba(255,255,255,.08);position:relative;overflow:hidden}
+.meter .fill{position:absolute;inset:0 auto 0 0;background:var(--ac);
+  box-shadow:0 0 14px var(--ac);transition:width 1.1s cubic-bezier(.2,.7,.3,1)}
+.meter .ticks{display:flex;justify-content:space-between;margin-top:6px;
+  font:400 9px/1 var(--mono);color:var(--faint)}
+
+/* idea block */
+.idea{position:relative;padding:20px 17px;margin-bottom:14px;
+  background:linear-gradient(160deg,rgba(255,200,106,.09),rgba(255,255,255,.02));
+  border:1px solid rgba(255,200,106,.2);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.idea::before{content:"";position:absolute;top:-1px;left:-1px;width:32px;height:32px;
+  border-left:1px solid var(--gold);border-top:1px solid var(--gold)}
+.idea .dt{font:600 9px/1 var(--mono);letter-spacing:2.4px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:12px}
+.idea .h{font-size:19px;font-weight:600;line-height:1.28;letter-spacing:-.2px}
+.idea .b{font-size:14px;line-height:1.68;color:var(--mut);margin-top:12px}
+.idea .step{margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,200,106,.22);
+  font-size:13.5px;line-height:1.55}
+.idea .step em{font-style:normal;font:600 9px/1 var(--mono);letter-spacing:2.2px;
+  text-transform:uppercase;color:var(--gold);display:block;margin-bottom:7px}
+
+.why{font:400 11.5px/1.5 var(--mono);color:var(--faint);margin:-6px 0 11px;letter-spacing:.3px}
+.take{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);color:var(--ink);font-size:13.5px;line-height:1.55}
+.take em{font-style:normal;font:600 9px/1 var(--mono);letter-spacing:2.2px;text-transform:uppercase;
+  color:var(--ac);display:block;margin-bottom:7px}
+
+/* the canon */
+.canon{border-top:1px solid var(--line)}
+.cn{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.cn .j{font:600 11.5px/1.35 var(--mono);letter-spacing:.4px;color:var(--ink);flex:0 0 auto;max-width:52%}
+.cn .q{font:400 10.5px/1.4 var(--mono);color:var(--faint);text-align:right;flex:1 1 auto;letter-spacing:.2px}
+
+/* topic chips */
+.tp{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.tpc{background:var(--panel);border:1px solid var(--line);color:var(--mut);
+  padding:9px 14px;font:500 12px/1 -apple-system,sans-serif;cursor:pointer;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.tpc:active{border-color:var(--ac);color:var(--ac)}
+
+.empty{padding:34px 0;text-align:center;color:var(--faint);
+  font:400 12.5px/1.7 var(--mono);letter-spacing:.6px}
+
+/* ══ footer ══ */
+/* --kb is the height of the on-screen keyboard, measured in JS. On iOS the
+   keyboard does not shrink the page, so without this the footer — the box he
+   types into — sits underneath the keyboard and cannot be reached. */
+footer{position:relative;z-index:72;flex:0 0 auto;
+  transform:translateY(calc(-1 * var(--kb,0px)));transition:transform .16s ease;
+  padding:9px 15px calc(8px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);background:rgba(4,6,10,.9);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+body.kb footer{padding-bottom:8px}
+body.kb .qk{display:none}          /* the chips give way to the keyboard */
+.fw{max-width:620px;margin:0 auto}
+.qk{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:8px}
+.qk::-webkit-scrollbar{display:none}
+.qc{flex:0 0 auto;background:rgba(255,255,255,.04);border:1px solid var(--line);
+  color:var(--mut);padding:7px 12px;font:500 11.5px/1 var(--mono);letter-spacing:.6px;
+  cursor:pointer;white-space:nowrap}
+.qc:active{border-color:var(--ac);color:var(--ac)}
+.bar2{display:flex;align-items:center;gap:8px}
+.mic{width:44px;height:44px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line2);
+  background:rgba(255,255,255,.05);color:var(--ac);font-size:17px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.18s}
+.mic.rec{border-color:var(--red);color:var(--red);box-shadow:0 0 22px rgba(255,122,107,.45);
+  animation:rec 1.1s ease-in-out infinite}
+@keyframes rec{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+/* 16px exactly. Below that, iOS Safari zooms the page the moment the box is
+   focused, the footer jumps, and it reads as the interface breaking. */
+input[type=text]{flex:1;background:rgba(255,255,255,.045);border:1px solid var(--line);
+  padding:12px 13px;color:var(--ink);font-size:16px;font-family:inherit;outline:none;min-width:0;
+  -webkit-appearance:none;border-radius:0}
+input[type=text]:focus{border-color:var(--ac)}
+.send{width:44px;height:44px;flex:0 0 auto;border:1px solid var(--line2);cursor:pointer;
+  background:rgba(255,255,255,.05);color:var(--ac);font-size:16px;
+  display:flex;align-items:center;justify-content:center}
+.send:active{background:rgba(255,255,255,.1)}
+.tools{display:flex;gap:11px;justify-content:center;justify-content:safe center;align-items:center;padding-top:9px;
+  flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+  font:400 9px/1 var(--mono);letter-spacing:.4px}
+.tools::-webkit-scrollbar{display:none}
+.tool{color:var(--faint);cursor:pointer;flex:0 0 auto;white-space:nowrap}
+.tool.act{color:var(--ac)}
+.tool.pick{color:var(--ac);border:1px solid var(--line2);padding:4px 9px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(var(--footh,96px) + 14px);
+  transform:translate(-50%,14px);z-index:70;opacity:0;pointer-events:none;
+  background:rgba(10,13,18,.96);border:1px solid var(--line2);padding:10px 16px;
+  max-width:90vw;text-align:center;
+  font:500 11.5px/1 var(--mono);letter-spacing:.8px;color:var(--ink);
+  transition:opacity .25s,transform .25s;max-width:82vw;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast .tact{margin-left:14px;padding-left:14px;border-left:1px solid var(--line2);
+  color:var(--ac);cursor:pointer;font-weight:600;letter-spacing:1.6px;text-transform:uppercase}
+
+#ptr{position:fixed;left:50%;top:calc(112px + env(safe-area-inset-top));transform:translate(-50%,0);
+  z-index:15;font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--ac);background:rgba(4,6,10,.9);border:1px solid var(--line2);padding:6px 14px;
+  opacity:0;pointer-events:none;transition:opacity .15s}
+
+/* ══ the launch ══ */
+#boot{position:fixed;inset:0;z-index:100;background:#04060a center/cover no-repeat;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .55s ease, visibility .55s}
+#boot > *{transition:opacity .38s ease, transform .55s cubic-bezier(.4,0,.2,1)}
+#boot.out > *{opacity:0;transform:scale(1.08)}
+#boot.gone{opacity:0;visibility:hidden;pointer-events:none}
+#bootBox{position:relative;width:min(76vw,300px);height:min(76vw,300px)}
+#bfx{position:absolute;inset:0;width:100%;height:100%}
+#bname{margin-top:26px;font:650 15px/1 var(--mono);letter-spacing:16px;
+  text-indent:16px;color:var(--amber);display:flex}
+#bname span{opacity:0;transform:translateY(6px);animation:bin .7s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes bin{to{opacity:1;transform:none}}
+#bsub{margin-top:15px;font-size:14.5px;font-weight:500;color:var(--ink);
+  opacity:0;transition:opacity .9s ease}
+#bsub.on{opacity:1}
+#blog{margin-top:26px;min-height:52px;font:400 9.5px/1.9 var(--mono);
+  letter-spacing:1.8px;text-transform:uppercase;color:var(--faint);text-align:center}
+#blog div{opacity:0;animation:bin .5s ease forwards}
+#blog b{color:var(--amber);font-weight:400}
+#bskip{position:absolute;bottom:calc(30px + env(safe-area-inset-bottom));
+  font:400 9px/1 var(--mono);letter-spacing:2.4px;text-transform:uppercase;
+  color:rgba(255,255,255,.22)}
+#bscan{position:absolute;left:0;right:0;height:1px;top:0;
+  background:linear-gradient(90deg,transparent,rgba(255,222,186,.5),transparent);
+  animation:bscan 2.6s cubic-bezier(.4,0,.2,1) 2 forwards}
+@keyframes bscan{0%{top:12%;opacity:0}12%{opacity:1}88%{opacity:1}100%{top:88%;opacity:0}}
+#boot.out > #bsub.on,#boot.out > #bname,#boot.out > #blog{opacity:0;transform:scale(1.08)}
+
+/* ══ home ══ */
+.hero{text-align:center;padding:4px 0 22px}
+.hero .d{font:400 9.5px/1 var(--mono);letter-spacing:3px;text-transform:uppercase;color:var(--faint)}
+.hero .l{font-size:23px;font-weight:300;line-height:1.28;margin-top:11px;letter-spacing:-.3px}
+.hero .l b{font-weight:600;color:var(--ac)}
+.hero .wx{margin-top:13px;font:400 10.5px/1 var(--mono);letter-spacing:.9px;white-space:nowrap;
+  text-transform:uppercase;color:var(--mut);cursor:pointer;
+  display:inline-block;border:1px solid var(--line);padding:7px 13px}
+.hero .wx:active{border-color:var(--ac);color:var(--ac)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tile{position:relative;padding:15px 14px 16px;cursor:pointer;min-height:112px;
+  background:var(--panel);border:1px solid var(--line);overflow:hidden;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  display:flex;flex-direction:column;justify-content:space-between;transition:.18s}
+.tile::before{content:"";position:absolute;top:-1px;left:-1px;width:26px;height:26px;
+  border-left:1px solid var(--tc);border-top:1px solid var(--tc);opacity:.8}
+.tile::after{content:"";position:absolute;inset:auto 0 0 0;height:1px;background:var(--tc);
+  opacity:.25;transform:scaleX(.28);transform-origin:left;transition:.4s}
+.tile:active{background:rgba(255,255,255,.06)}
+.tile:active::after{transform:scaleX(1);opacity:.7}
+.tile.wide{grid-column:1 / -1;min-height:auto;flex-direction:row;align-items:center;gap:12px}
+.tile .n{font:600 9.5px/1 var(--mono);letter-spacing:2.6px;text-transform:uppercase;color:var(--tc)}
+.tile .v{font:200 30px/1 var(--mono);letter-spacing:-1.4px;color:var(--ink);margin-top:14px}
+.tile.wide .v{margin-top:0;font-size:20px}
+.tile .s{font-size:11.5px;line-height:1.35;color:var(--mut);margin-top:6px}
+.tile.wide .s{margin-top:2px;flex:1}
+.tile .dot{position:absolute;top:11px;right:11px;width:6px;height:6px;border-radius:50%;
+  background:var(--red);box-shadow:0 0 10px var(--red)}
+
+/* ══ the conversation ══ */
+/* ── WHY THIS STOPS ABOVE THE FOOTER ──
+   It used to be inset:0, so the moment she answered anything the sheet slid
+   up over the whole screen, including the box you type into and the arrow you
+   press. Tapping the box tapped the sheet instead. You had to find "close"
+   before you could say a second thing, and until you did, typing did nothing
+   at all. It now stops at the top of the footer: she can be mid-sentence and
+   the keyboard is still yours. --footh is measured in JS on every resize. */
+#talk{position:fixed;left:0;right:0;top:0;bottom:calc(var(--footh,0px) + var(--kb,0px));
+  z-index:70;display:none;flex-direction:column;justify-content:flex-end;
+  background:linear-gradient(180deg,rgba(4,6,10,0) 0%,rgba(4,6,10,.55) 26%,rgba(4,6,10,.9) 60%)}
+#talk.on{display:flex;animation:vfade .2s ease}
+#tgrab{flex:1 1 auto;min-height:60px}
+#tbox{max-height:calc(100dvh - var(--footh,0px) - var(--kb,0px) - 74px);overflow-y:auto;scrollbar-width:none;
+  background:rgba(8,11,16,.93);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  border-top:1px solid var(--line2);
+  padding:0 15px 14px;
+  animation:vup .38s cubic-bezier(.2,.8,.3,1)}
+#tbox::-webkit-scrollbar{display:none}
+#thead{position:sticky;top:0;z-index:2;background:rgba(8,11,16,.96);
+  padding:13px 0 11px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--line);margin-bottom:14px}
+#thead .t{font:600 10px/1 var(--mono);letter-spacing:2.6px;text-transform:uppercase;color:var(--ac);flex:1}
+#thead .x{font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--faint);border:1px solid var(--line);padding:6px 11px;cursor:pointer}
+#thead .x:active{color:var(--ac);border-color:var(--ac)}
+.msg{margin-bottom:16px;animation:flt .5s cubic-bezier(.16,.8,.28,1) both}
+.msg.me{text-align:right}
+.msg.me .b{display:inline-block;max-width:86%;text-align:left;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);
+  padding:10px 13px;font-size:14px;line-height:1.5;color:var(--ink)}
+.msg.her .k{font:600 9px/1 var(--mono);letter-spacing:2.4px;text-transform:uppercase;
+  color:var(--ac);margin-bottom:8px;display:flex;align-items:center;gap:9px}
+.msg.her .k::after{content:"";flex:1;height:1px;background:var(--line)}
+.msg.her .k .rp{cursor:pointer;color:var(--faint);letter-spacing:1.6px}
+.msg.her .k .rp:active{color:var(--ac)}
+.msg.her .b{font-size:14.5px;line-height:1.68;color:var(--ink)}
+.msg.her .b b{color:var(--ac);font-weight:600}
+#tempty{padding:26px 0 30px;text-align:center;color:var(--faint);
+  font:400 12.5px/1.8 var(--mono);letter-spacing:.4px}
+#tempty b{color:var(--mut);font-weight:400}
+
+/* ══ voice picker ══ */
+#vsheet{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;
+  background:rgba(4,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#vsheet.on{display:flex;animation:vfade .22s ease}
+@keyframes vfade{from{opacity:0}to{opacity:1}}
+#vbox{width:100%;max-height:76dvh;overflow-y:auto;background:rgba(10,13,18,.97);
+  border-top:1px solid var(--line2);padding:16px 15px calc(18px + env(safe-area-inset-bottom));
+  animation:vup .34s cubic-bezier(.2,.8,.3,1)}
+@keyframes vup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+#vbox h4{margin:0 0 4px;font:600 10px/1 var(--mono);letter-spacing:2.6px;
+  text-transform:uppercase;color:var(--ac)}
+#vbox .vh{font:400 11px/1.5 var(--mono);color:var(--faint);margin:0 0 14px}
+#vbox .vg{font:600 9px/1 var(--mono);letter-spacing:2.2px;text-transform:uppercase;
+  color:var(--faint);margin:16px 0 8px;display:flex;align-items:center;gap:9px}
+#vbox .vg::after{content:"";flex:1;height:1px;background:var(--line)}
+.vrow{display:flex;align-items:center;gap:11px;padding:12px 12px;cursor:pointer;
+  border:1px solid var(--line);margin-bottom:7px;background:var(--panel)}
+.vrow:active{background:rgba(255,255,255,.07)}
+.vrow.on{border-color:var(--ac)}
+.vrow .nm{flex:1;font-size:14px;font-weight:520;line-height:1.3}
+.vrow .hd{display:block;font:400 10.5px/1.4 var(--mono);color:var(--faint);margin-top:3px;letter-spacing:.2px}
+.vrow.hrow{border-color:rgba(255,222,186,.18)}
+#vlist .vg:first-child{margin-top:20px}
+.vrow .lg{font:400 9.5px/1 var(--mono);color:var(--faint);letter-spacing:.8px}
+.vrow .tick{width:16px;flex:0 0 auto;color:var(--ac);opacity:0;font-size:13px}
+.vrow.on .tick{opacity:1}
+.tune{margin-bottom:16px}
+.tune .tl{display:flex;justify-content:space-between;align-items:baseline;
+  font:600 9.5px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--mut);margin-bottom:9px}
+.tune .tl b{color:var(--ac);font-weight:600;letter-spacing:1px}
+.tune .tn{font:400 10px/1.4 var(--mono);color:var(--faint);margin-top:7px;letter-spacing:.2px}
+.tune input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;
+  background:rgba(255,255,255,.14);outline:none;margin:0}
+.tune input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;
+  border-radius:50%;background:var(--ac);box-shadow:0 0 14px var(--ac);cursor:pointer;border:0}
+.tune input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;
+  background:var(--ac);border:0;cursor:pointer}
+
+#vdiag{margin-top:14px;font:400 10.5px/1.7 var(--mono);color:var(--faint);letter-spacing:.4px}
+#vdiag b{color:var(--mut);font-weight:400}
+#vall{display:block;margin-top:9px;color:var(--ac);cursor:pointer;
+  border-bottom:1px solid rgba(255,222,186,.35);width:max-content}
+#vclose{margin-top:14px;width:100%;padding:13px;text-align:center;cursor:pointer;
+  border:1px solid var(--line2);font:600 10px/1 var(--mono);letter-spacing:2.4px;
+  text-transform:uppercase;color:var(--mut)}
+#vclose:active{color:var(--ac);border-color:var(--ac)}
+
+/* zen overlay */
+#zen{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;
+  align-items:center;justify-content:center;background:rgba(4,6,10,.95);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#zen.on{display:flex}
+#zenBox{position:relative;width:min(76vw,310px);height:min(76vw,310px)}
+#zfx{position:absolute;inset:0;width:100%;height:100%}
+#zlab{margin-top:24px;font:600 10px/1 var(--mono);letter-spacing:4px;text-transform:uppercase;color:var(--ac)}
+#zcnt{font:200 40px/1 var(--mono);color:var(--mut);margin-top:8px}
+#zx{margin-top:28px;font:500 10px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;
+  color:var(--faint);border:1px solid var(--line2);padding:9px 20px;cursor:pointer}
+
+/* ══ every screen: three small fixes found on the Fold cover screen ══
+   The date line broke inside "04:02 AM"; the weather chip ran off the right
+   edge (nowrap) and made the page scroll sideways; tile subtitles were cut
+   mid-word by a character slice. */
+.nw{white-space:nowrap}
+.hero .wx{white-space:normal;max-width:100%;line-height:1.55;text-wrap:balance}
+.tile .s{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ══ the Galaxy Z Fold inner screen, and any tablet ══
+   Only when BOTH sides are at least 600px, so a phone turned sideways
+   (an iPhone is 440px tall in landscape) keeps the phone layout it has always
+   had, and so does the Fold's cover screen in either orientation. Two columns
+   with the gutter on the centre line, which is where the Fold's crease runs:
+   no line of text ever crosses the fold. */
+@media (min-width:600px) and (min-height:600px){
+  :root{--gut:28px}
+  header{padding-left:var(--gut);padding-right:var(--gut)}
+  .rail{padding:0 var(--gut)}
+  .tab{flex:1 1 0;padding:9px 4px 10px;font-size:9.5px}
+  .tab.on::after{left:22%;right:22%}
+  main{padding:20px var(--gut) 14px}
+  .wrap{max-width:1180px}
+  footer{padding-left:var(--gut);padding-right:var(--gut)}
+  .fw{max-width:780px}
+  .strip{margin:0 calc(-1 * var(--gut));padding-left:var(--gut);padding-right:var(--gut)}
+  .ev{width:152px}
+
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px;align-items:start}
+  .cols > .sec > .eyebrow:first-child{margin-top:0}
+  .cgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+
+  .hero{padding:12px 0 28px}
+  .hero .l{font-size:31px;line-height:1.24}
+  .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .tile{min-height:136px}
+  .tile.wide{grid-column:auto;flex-direction:column;align-items:stretch;min-height:136px;gap:0}
+  .tile.wide .v{margin-top:14px;font-size:30px}
+  .tile.wide .s{margin-top:6px;flex:0 0 auto}
+
+  .canon{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}
+  .idea .h{font-size:22px}
+
+  #tbox{max-width:780px;margin:0 auto;width:100%;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  #vbox{max-width:640px;margin:0 auto}
+  #bootBox{width:min(46vw,340px);height:min(46vw,340px)}
+
+  /* the entrance: stagger the cards inside each column, not the column */
+  .pane.on > .cols,.pane.on > .cgrid{animation:none}
+  .pane.on .sec > *,.pane.on .cgrid > *{animation:flt .62s cubic-bezier(.16,.8,.28,1) both}
+  .pane.on .sec > *:nth-child(2),.pane.on .cgrid > *:nth-child(2){animation-delay:.045s}
+  .pane.on .sec > *:nth-child(3),.pane.on .cgrid > *:nth-child(3){animation-delay:.09s}
+  .pane.on .sec > *:nth-child(4),.pane.on .cgrid > *:nth-child(4){animation-delay:.13s}
+  .pane.on .sec > *:nth-child(5),.pane.on .cgrid > *:nth-child(5){animation-delay:.17s}
+  .pane.on .sec > *:nth-child(6),.pane.on .cgrid > *:nth-child(6){animation-delay:.21s}
+  .pane.on .sec > *:nth-child(7),.pane.on .cgrid > *:nth-child(7){animation-delay:.245s}
+  .pane.on .sec > *:nth-child(n+8),.pane.on .cgrid > *:nth-child(n+8){animation-delay:.28s}
+  .pane.on .sec:nth-child(2) > *{animation-delay:.08s}
+}
+@media (prefers-reduced-motion:reduce){ .pane.on .sec > *,.pane.on .cgrid > *{animation:none} }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="plate"></div>
+<div id="plate2"></div>
+<div id="grade"></div>
+<div id="grain"></div>
+
+<header>
+  <div class="hrow">
+    <div id="orbBox"><canvas id="fx"></canvas></div>
+    <div class="hmeta">
+      <div class="hname">Astra</div>
+      <div class="hline" id="hline">standing by</div>
+    </div>
+    <div class="hclock"><span id="ctime"></span><br><span id="hago"></span></div>
+    <button id="sync" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><path d="M20.6 3.9v4.6h-4.6"/></svg>
+    </button>
+  </div>
+  <div class="tel" id="tel"></div>
+</header>
+
+<nav><div class="rail" id="rail"></div></nav>
+
+<main><div class="wrap" id="panes"></div></main>
+
+<footer><div class="fw">
+  <div class="qk" id="qk"></div>
+  <div class="bar2">
+    <button class="mic" id="mic" aria-label="Speak">&#127908;</button>
+    <input type="text" id="ask" placeholder="Ask Astra, or tell her something&#8230;"
+      autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false"
+      inputmode="text" enterkeyhint="send">
+    <button class="send" id="send" aria-label="Send">&#8593;</button>
+  </div>
+  <div class="tools">
+    <span class="tool act" id="tVoice">sound</span>
+    <span class="tool pick" id="tVox">voice</span>
+    <span class="tool" id="tFeed">checking</span>
+    <span class="tool" id="tPush">notify off</span>
+    <span class="tool" id="tTalk">talk</span>
+    <span class="tool" id="tStop">stop</span>
+  </div>
+</div></footer>
+
+<div id="boot">
+  <div id="bscan"></div>
+  <div id="bootBox"><canvas id="bfx"></canvas></div>
+  <div id="bname"></div>
+  <div id="bsub"></div>
+  <div id="blog"></div>
+  <div id="bskip">tap to skip</div>
+</div>
+<div id="vsheet"><div id="vbox">
+  <h4>Her voice</h4>
+  <div class="vh">Tap one and she'll say a line so you can hear it.</div>
+  <div id="hlist"></div>
+  <div id="vlist"></div>
+  <div id="vdiag"></div>
+  <div id="vclose">done</div>
+</div></div>
+<div id="talk">
+  <div id="tgrab"></div>
+  <div id="tbox">
+    <div id="thead"><span class="t">Astra</span><span class="x" id="tx">close</span></div>
+    <div id="tthread"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="ptr">pull to refresh</div>
+<div id="zen">
+  <div id="zenBox"><canvas id="zfx"></canvas></div>
+  <div id="zlab">breathe in</div>
+  <div id="zcnt">4</div>
+  <div id="zx">end</div>
+</div>
+<script>
+/* ══════════ WHOSE ASSISTANT SHE IS ══════════
+   Every line she says or writes is funnelled through you() on its way out, so
+   one deployed page can belong to anybody. The name arrives from ?name= in the
+   link, or from a "meta name" row in the feed sheet, which wins. Nothing else
+   in this file is personal: the place, the coordinates, the weather fallback
+   and every word on the board come from the sheet. */
+const QP=new URLSearchParams(location.search);
+let YOU=QP.get('name')||'Guhan';
+const you=s=>String(s).split('Guhan').join(YOU);
+
+/* ══════════ TABS ══════════ */
+/* ══ WHICH SCREEN ══
+   The Galaxy Z Fold has two: a tall narrow cover screen and a near-square
+   inner one. The panes are laid out differently on the inner screen, and the
+   Fold changes screen without reloading the page, so when he opens or closes
+   the phone she repaints in place. A phone never matches, so it is untouched. */
+const WIDE_MQ=matchMedia('(min-width:600px) and (min-height:600px)');
+let WIDE=WIDE_MQ.matches;
+function onWide(){ const w=WIDE_MQ.matches; if(w===WIDE) return; WIDE=w;
+  try{ if(typeof paintAll==='function') paintAll(); }catch(_){ } }
+if(WIDE_MQ.addEventListener) WIDE_MQ.addEventListener('change',onWide); else if(WIDE_MQ.addListener) WIDE_MQ.addListener(onWide);
+/* two columns on the inner screen, and exactly the old markup everywhere else */
+function cols(secs){ secs=secs.filter(Boolean);
+  return WIDE?`<div class="cols">`+secs.map(x=>`<div class="sec">${x}</div>`).join('')+`</div>`:secs.join(''); }
+function split2(secs){ secs=secs.filter(Boolean); if(!WIDE) return secs.join('');
+  const m=Math.ceil(secs.length/2); return cols([secs.slice(0,m).join(''),secs.slice(m).join('')]); }
+function grid2(html){ return WIDE&&html?`<div class="cgrid">${html}</div>`:html; }
+
+const TABS=[
+ {k:'home',   n:'Home',    c:'#ffdeba', g:'255,222,186', s:'176,196,255'},
+ {k:'today',  n:'Today',   c:'#ffdeba', g:'255,222,186', s:'176,196,255'},
+ {k:'urgent', n:'Urgent',  c:'#ff7a6b', g:'255,140,110', s:'255,90,70'},
+ {k:'health', n:'Health',  c:'#7fe0d0', g:'127,224,208', s:'110,200,255'},
+ {k:'horizon',n:'Horizon', c:'#b9a6ff', g:'185,166,255', s:'120,140,255'},
+ {k:'ideas',  n:'Ideas',   c:'#ffc86a', g:'255,200,106', s:'255,150,90'},
+ {k:'learn',  n:'Learn',   c:'#8fb8ff', g:'143,184,255', s:'120,255,230'},
+ {k:'news',   n:'News',    c:'#9be8a8', g:'155,232,168', s:'120,200,255'},
+ {k:'board',  n:'All',   c:'#e8e2d8', g:'232,226,216', s:'170,185,225'}
+];
+const ICON={
+  home:`<circle cx="12" cy="12" r="3.1"/><circle cx="12" cy="12" r="8.3" opacity=".5"/>`,
+  today:`<circle cx="12" cy="10.5" r="3.9"/><path d="M3 19.5h18"/><path d="M12 2.5v2M4.6 5.4l1.4 1.4M19.4 5.4 18 6.8"/>`,
+  urgent:`<path d="M12 3.4 21.2 19.4H2.8z"/><path d="M12 9.6v4.1M12 16.5v.1"/>`,
+  health:`<path d="M2.8 12.2h3.9L9 7l3.3 10L14.6 12.2h6.6"/>`,
+  horizon:`<path d="M2.8 20.2h18.4"/><path d="M6 16.3h12M9 12.6h6M11 9h2"/>`,
+  ideas:`<circle cx="12" cy="12" r="2.5"/><path d="M12 2.6v3.1M12 18.3v3.1M2.6 12h3.1M18.3 12h3.1M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M18.4 5.6l-2.2 2.2M7.8 16.2l-2.2 2.2"/>`,
+  learn:`<path d="M3.6 5.2v13.3c2.9-1 5.7-.7 8.4.9 2.7-1.6 5.5-1.9 8.4-.9V5.2c-2.9-1-5.7-.7-8.4.9-2.7-1.6-5.5-1.9-8.4-.9z"/><path d="M12 6.1v13.3"/>`,
+  news:`<circle cx="12" cy="12" r="1.9"/><path d="M8.4 8.4a5.1 5.1 0 0 0 0 7.2M15.6 8.4a5.1 5.1 0 0 1 0 7.2"/><path d="M5.7 5.7a9 9 0 0 0 0 12.6M18.3 5.7a9 9 0 0 1 0 12.6"/>`,
+  board:`<rect x="3.4" y="3.4" width="7.1" height="7.1"/><rect x="13.5" y="3.4" width="7.1" height="7.1"/><rect x="3.4" y="13.5" width="7.1" height="7.1"/><rect x="13.5" y="13.5" width="7.1" height="7.1"/>`
+};
+let TAB='home';
+
+/* ══════════ KNOWLEDGE ══════════
+   This is only the fallback she carries inside her. The real content is
+   fetched from the feed sheet on every open. Nothing identifiable lives here. */
+const KB={
+  updated:'the last time I was rebuilt',
+  greet:"Here is where things stand",
+  now:[
+    {t:"Send the WCNR Korea documents request",d:"The draft is ready and waiting on your word. It is the last thing standing between you and the visa file being complete.",lvl:'hot'},
+    {t:"IANCON abstract review",d:"Abstracts are open and the window is narrower than it looks. One submission now is worth three intentions in October.",lvl:'hot'},
+    {t:"A laboratory report is waiting on your clinical details",d:"It cannot be filed until you add the clinical context. Five minutes of your time closes it.",lvl:'hot'},
+    {t:"Drafts ready for review",d:"Several replies are written and sitting in Gmail. Nothing sends without you pressing send.",lvl:'warn'}
+  ],
+  week:[
+    {t:"The twenty-first of August has three commitments",d:"Samvaad, Pathshala and your clinic all sit on the same day. One of them has to move, and it is better that you choose which.",lvl:'hot'},
+    {t:"TANCON 2026",d:"Your talk and your short CV slide are done. What remains is the travel and the arrival time.",lvl:'warn'},
+    {t:"Bank statement with the bank's stamp",d:"Six months, stamped, is the piece of the visa file that always takes longest. Start it before you need it.",lvl:'warn'},
+    {t:"School trustee matters",d:"A signature is pending. It is small, and it has been pending for a while.",lvl:'warn'}
+  ],
+  events:[
+    {d:'2026-08-21',n:'Samvaad and Pathshala',w:'Bangalore and online'},
+    {d:'2026-08-28',n:'TANCON 2026',w:'Hotel Hills, Hosur'},
+    {d:'2026-09-05',n:'MGM Healthcare CME',w:'Chennai'},
+    {d:'2026-09-16',n:'WCNR standard registration closes',w:'Late fee applies after this'},
+    {d:'2026-10-14',n:'WCNR 2026',w:'EXCO Daegu, South Korea'},
+    {d:'2026-10-28',n:'IANCON 2026',w:'Jaipur'}
+  ],
+  ideas:[
+    {h:"Publish the Floor Two build as an open case study",
+     b:"Nobody in Indian neurorehabilitation publishes what a rehabilitation floor actually costs to build and run. You are building one. If you document it properly, with the therapist-hour constraint and the real capacity mathematics, it becomes the reference every other district hospital cites when they build theirs. That is a different kind of authority from a case report. It makes you the person people call before they spend money.",
+     s:"Open a document today and write only the equipment list and the floor plan. Nothing else. The rest follows once the file exists.",
+     d:''}
+  ],
+  news:[
+    {sc:'regional',h:'Nothing has arrived yet',
+     b:"Thoothukudi district and the coast. Anything that touches your hospital, your patients or the road to it.",src:''},
+    {sc:'state',h:'Nothing has arrived yet',
+     b:"Tamil Nadu. Health policy, medical council, insurance schemes, anything that changes how you practise.",src:''},
+    {sc:'national',h:'Nothing has arrived yet',
+     b:"India. NMC, DrNB and fellowship rules, national programmes, anything affecting neurology and rehabilitation.",src:''},
+    {sc:'world',h:'Nothing has arrived yet',
+     b:"The wider field. Guidelines, congresses, appointments and funding that matter to a neurorehabilitation career.",src:''}
+  ],
+  learn:[
+    {st:'neurology',h:'This stream is waiting for Monday',
+     b:"Each week one thing worth knowing from general neurology, chosen because it changes what you do rather than because it is new.",
+     k:"Nothing to do yet. The first set arrives on Monday morning.",src:''},
+    {st:'neurorehab',h:'This stream is waiting for Monday',
+     b:"One finding from neurorehabilitation a week, weighted towards what a district centre with limited therapist hours can actually deliver.",
+     k:"Nothing to do yet.",src:''},
+    {st:'neuromodulation',h:'This stream is waiting for Monday',
+     b:"rTMS, tDCS, vagal and spinal stimulation. Protocols, parameters and who responds, since this is the edge you are already on.",
+     k:"Nothing to do yet.",src:''},
+    {st:'medicine',h:'This stream is waiting for Monday',
+     b:"One thing from general and internal medicine, because most of your inpatients are not only neurological and the comorbidity is what kills them.",
+     k:"Nothing to do yet.",src:''}
+  ],
+  health:[
+    {m:'weight',v:'—',t:'target is 18 kg down'},
+    {m:'sleep',v:'—',t:'1am to 8am, and it is not enough'},
+    {m:'walk',v:'—',t:'evening walk, after clinic'}
+  ],
+  rehab:"Three findings decide the Floor Two gym. Your bottleneck is therapist hours, not equipment. Clinical staff deliver a fixed number of sessions a day against equipment that could support far more, so hire ahead of the equipment curve. Second, the flow only works if assessment, therapy and rest are separated on the floor rather than mixed. Third, the beach-side centre and the second floor are not two projects, they are one brand built twice.",
+  goals:"Six goals. The beach-side rehabilitation centre at Tiruchendur, which is the flagship. The centre on the second floor of the hospital. Improving the flow and cost efficiency of the existing centre. Upskilling in neurorehabilitation. Building your name in neurorehabilitation. And the applications, FRCP and the awards that compound into everything else.",
+  cv:"Your master CV was rebuilt this month. Publications that had been missing for two years are back in it, including your first-author paper on rTMS in post-thrombolysis aphasia. What it still needs is the invited-talk record, which is longer than you think and which nobody but you can reconstruct.",
+  visa:"Korea, Chennai jurisdiction, business and conference checklist, single entry. You need three years of income tax returns rather than two, GST and council registration, a bank statement carrying the bank stamp, the business profile form, the health conditions declaration, and the conference invitation. The invitation and the abstract acceptance are the two that are already done.",
+  health_note:"Your target is an eighteen kilogram reduction. Tracking begins properly when the smartwatch arrives, at which point Apple Health carries weight and activity into the morning brief. You are pescatarian, and your sleep window is the thing quietly working against you.",
+  lift:[
+    ["You came first in the country","You hold the President's Gold Medal for topping DrNB Neurology across all of India, and a university first rank on top of it. On the days the inbox feels like it is winning, that is still true. You are not a person who struggles with hard things. You are a person who has already done several."],
+    ["Forty families a day","Your outpatient list is not a number on a report. It is forty people, most of whom travelled a long way, who will be seen today by one of the best-qualified neurologists in Tamil Nadu. That happens because you chose to practise in Tiruchendur rather than somewhere easier."],
+    ["You built the thing that did not exist","There was no organised neurorehabilitation service across those five districts. Now there is one, and you made it. The second floor is not a new idea, it is the next room in a building you have already proved you can put up."],
+    ["Three chairs, one commission","Chairman of the Neurorehabilitation Subsection of the Indian Academy of Neurology. Chair of the Epilepsy and Neurodisability group at the World Federation. Ambassador to the Lancet Commission. Those were not given to you for being available. They were given to you for being useful."],
+    ["The paper mattered","Your rTMS case in post-thrombolysis aphasia gave a man his words back, and you wrote it up so other people could do it too. That is the whole job done properly. Treat one person, then teach the method."],
+    ["Your name is on the programme","In October you will stand in front of the World Congress and talk about rehabilitation in epilepsy. From a district hospital on the Tamil Nadu coast. Hold that thought the next time an inbox feels heavy."]
+  ]
+};
+/* ══════════ THE SKY ══════════
+   Two pre-rendered parallax layers per tab plus a live dust pass. Rendering the
+   nebulae once and blitting them means a phone does two image draws a frame,
+   not ten thousand gradient fills. The photographic plate, when one exists,
+   sits under all of it and the grade sheet keeps the text legible over it. */
+const sky=document.getElementById('sky'), sctx=sky.getContext('2d');
+let SW=0,SH=0,SDPR=Math.min(devicePixelRatio||1,1.35);
+const LAYER={};              // tab key -> {far, near}
+let drift=0, scrollY=0, tiltX=0, tiltY=0;
+
+function rnd(seed){ let s=seed; return ()=>{ s=(s*1664525+1013904223)%4294967296; return s/4294967296; }; }
+
+function buildLayers(t){
+  const W=Math.ceil(SW*1.18), H=Math.ceil(SH*1.18);
+  const mk=()=>{ const c=document.createElement('canvas'); c.width=W; c.height=H; return c; };
+  const R=rnd(t.k.split('').reduce((a,ch)=>a+ch.charCodeAt(0),7)*9176);
+
+  /* far: deep wash, nebula bodies, dense fine stars */
+  const f=mk(), fc=f.getContext('2d');
+  /* no opaque base here — it is painted per frame only when there is no
+     photograph behind, so that his plates are not buried under my sky */
+  for(let i=0;i<5;i++){                                     // nebula bodies
+    const x=W*(.15+R()*.8), y=H*(.28+R()*.72), r=Math.max(W,H)*(.24+R()*.42);
+    const g=fc.createRadialGradient(x,y,0,x,y,r);
+    const col = i%2 ? t.s : t.g, a=.055+R()*.075;
+    g.addColorStop(0,`rgba(${col},${a})`);
+    g.addColorStop(.45,`rgba(${col},${a*.42})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    fc.fillStyle=g; fc.beginPath(); fc.ellipse(x,y,r,r*(.52+R()*.5),R()*3.14,0,6.283); fc.fill();
+  }
+  for(let i=0;i<520;i++){                                   // far stars
+    const x=R()*W, y=R()*H, s=R();
+    const a=.10+s*s*.42, rr=s>.94?1.5:s>.7?1.05:.75;
+    fc.fillStyle=`rgba(${s>.86?t.g:'214,224,255'},${a})`;
+    fc.beginPath(); fc.arc(x,y,rr,0,6.283); fc.fill();
+  }
+
+  /* near: a few bright stars with bloom, and one long horizon glow */
+  const n=mk(), nc=n.getContext('2d');
+  const hy=H*(.80+R()*.10), hg=nc.createLinearGradient(0,hy-H*.20,0,hy+H*.10);
+  hg.addColorStop(0,'rgba(0,0,0,0)');
+  hg.addColorStop(.62,`rgba(${t.g},.13)`);
+  hg.addColorStop(1,'rgba(0,0,0,0)');
+  nc.fillStyle=hg; nc.fillRect(0,hy-H*.20,W,H*.30);
+  for(let i=0;i<26;i++){
+    const x=R()*W, y=R()*H, r=1.4+R()*1.8;
+    const g=nc.createRadialGradient(x,y,0,x,y,r*8);
+    g.addColorStop(0,'rgba(255,255,255,.9)');
+    g.addColorStop(.16,`rgba(${t.g},.5)`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    nc.fillStyle=g; nc.beginPath(); nc.arc(x,y,r*8,0,6.283); nc.fill();
+  }
+  return {far:f, near:n, W, H};
+}
+
+/* live dust, drawn every frame — cheap, and it is what makes it feel alive */
+let dust=[];
+function seedDust(){
+  dust=Array.from({length:34},()=>({x:Math.random(),y:Math.random(),
+    z:.25+Math.random()*.75, sp:.000018+Math.random()*.00007, ph:Math.random()*6.283}));
+}
+
+function resizeSky(){
+  SW=innerWidth; SH=innerHeight;
+  sky.width=SW*SDPR; sky.height=SH*SDPR;
+  sctx.setTransform(SDPR,0,0,SDPR,0,0);
+  for(const k in LAYER) delete LAYER[k];
+  seedDust();
+}
+
+function paintSky(T){
+  const t=TABS.find(x=>x.k===TAB)||TABS[0];
+  if(!LAYER[t.k]) LAYER[t.k]=buildLayers(t);
+  const L=LAYER[t.k];
+  sctx.clearRect(0,0,SW,SH);
+  if(!plateOn){
+    const base=sctx.createLinearGradient(0,0,SW*.35,SH);
+    base.addColorStop(0,'#05070c'); base.addColorStop(.55,'#070a11'); base.addColorStop(1,'#04060a');
+    sctx.fillStyle=base; sctx.fillRect(0,0,SW,SH);
+  }
+  sctx.globalAlpha = plateOn ? .62 : 1;
+  drift+=.00013;
+  const px=Math.sin(drift)*SW*.035 + tiltX*16, py=Math.cos(drift*.73)*SH*.022 + tiltY*12;
+  const sc=scrollY*.06;
+  sctx.drawImage(L.far,  -(SW*.09)+px*.35, -(SH*.09)+py*.35 - sc*.35, L.W, L.H);
+  sctx.drawImage(L.near, -(SW*.09)+px,     -(SH*.09)+py     - sc,     L.W, L.H);
+  for(const d of dust){
+    const x=((d.x + T*d.sp*(0.4+d.z)) % 1.2 - .1)*SW + px*d.z*1.6;
+    const y=((d.y + T*d.sp*.35) % 1.2 - .1)*SH + py*d.z*1.6 - sc*d.z*1.4;
+    const a=(.10+d.z*.30)*(.6+.4*Math.sin(T*.0009+d.ph));
+    sctx.fillStyle=`rgba(${t.g},${a})`;
+    sctx.beginPath(); sctx.arc(x,y,d.z*1.5,0,6.283); sctx.fill();
+  }
+  sctx.globalAlpha=1;
+  drawRipples(Math.min(50,T-(paintSky._l||T))); paintSky._l=T;
+}
+
+/* ── touching her is touching water: a ripple from the finger, in screen space ── */
+let rip=[];
+function touchRipple(x,y,st){
+  rip.push({x,y,t:0,s:st||1});
+  if(rip.length>5) rip.shift();
+  if(typeof pulseFX==='function') pulseFX(.8);
+}
+function drawRipples(dt){
+  if(!rip.length) return;
+  const t=TABS.find(x=>x.k===TAB)||TABS[0];
+  const prev=sctx.globalCompositeOperation; sctx.globalCompositeOperation='lighter';
+  for(const r of rip){
+    r.t+=dt;
+    const p=r.t/1500;                       // life
+    if(p>=1) continue;
+    const R0=p*Math.max(SW,SH)*0.78*r.s;
+    const fade=(1-p)*(1-p);
+    for(let i=0;i<3;i++){
+      const rr=R0*(1-i*0.13);
+      if(rr<=2) continue;
+      const a=fade*(0.20-i*0.055)*r.s;
+      if(a<=0.006) continue;
+      sctx.beginPath();
+      sctx.arc(r.x,r.y,rr,0,6.283);
+      sctx.strokeStyle=`rgba(${t.g},${a})`;
+      sctx.lineWidth=(2.4-i*0.6)*(1-p*0.5);
+      sctx.stroke();
+    }
+    if(p<0.34){                              // the moment of contact
+      const g=sctx.createRadialGradient(r.x,r.y,0,r.x,r.y,60*r.s*(1+p*2));
+      g.addColorStop(0,`rgba(${t.g},${(0.34-p)*0.9*r.s})`);
+      g.addColorStop(1,`rgba(0,0,0,0)`);
+      sctx.fillStyle=g; sctx.beginPath(); sctx.arc(r.x,r.y,60*r.s*(1+p*2),0,6.283); sctx.fill();
+    }
+  }
+  sctx.globalCompositeOperation=prev;
+  rip=rip.filter(r=>r.t<1500);
+}
+addEventListener('pointerdown',e=>{ if(!booting) touchRipple(e.clientX,e.clientY,1); },{passive:true});
+
+/* the photographic plate, if there is one for this tab */
+let plateOn=false, plateTop=false;
+function setPlate(k){
+  const a=document.getElementById('plate'), b=document.getElementById('plate2');
+  const front=plateTop?a:b, back=plateTop?b:a;      // cross-fade, never a cut
+  const img=new Image();
+  img.onload=()=>{
+    front.style.backgroundImage=`url(plates/${k}.jpg)`;
+    front.classList.add('on'); back.classList.remove('on');
+    plateTop=!plateTop; plateOn=true; document.body.classList.add('plated');
+  };
+  img.onerror=()=>{ a.classList.remove('on'); b.classList.remove('on');
+    plateOn=false; document.body.classList.remove('plated'); };
+  img.src='plates/'+k+'.jpg';
+}
+
+addEventListener('resize',()=>{resizeSky();resize();});
+addEventListener('deviceorientation',e=>{
+  if(e.gamma==null) return;
+  tiltX=Math.max(-1,Math.min(1,e.gamma/32)); tiltY=Math.max(-1,Math.min(1,(e.beta-45)/40));
+},{passive:true});
+
+/* ══════════ ORB + ZEN CANVASES ══════════ */
+const cv=document.getElementById('fx'), ctx=cv.getContext('2d');
+const zcv=document.getElementById('zfx'), zctx=zcv.getContext('2d');
+const DPR=Math.min(devicePixelRatio||1,2);
+let CW=52,CH=52,ZW=300,ZH=300;
+function resize(){
+  const b=document.getElementById('orbBox');
+  CW=b.clientWidth||52; CH=b.clientHeight||52;
+  cv.width=CW*DPR; cv.height=CH*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  const z=document.getElementById('zenBox');
+  ZW=z.clientWidth||300; ZH=z.clientHeight||300;
+  zcv.width=ZW*DPR; zcv.height=ZH*DPR; zctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+let portrait=null, useFace=false, speaking=false, listening=false, T=0, last=0;
+let env=0, envT=0;
+let mouth={o:.05,w:.44,r:.30}, target={o:.05,w:.44,r:.30}, visTimer=null;
+const VIS={rest:{o:.05,w:.44,r:.30}};
+let brow=0, emph=0, lidRest=0, smile=0, gazeX=0, gazeY=0, blink=0;
+
+const MODES={
+  work: {a:'255,222,186', b:'176,196,255', rate:0.97, pitch:1.02},
+  calm: {a:'208,180,255', b:'255,178,214', rate:0.84, pitch:0.96},
+  boost:{a:'255,198,128', b:'255,138,128', rate:1.03, pitch:1.06}
+};
+let mode='work', palT=MODES.work, paA='255,222,186', paB='176,196,255';
+function setMode(m){ mode=m; palT=MODES[m]; }
+function mixc(c1,c2,t){const A=c1.split(',').map(Number),B=c2.split(',').map(Number);
+  return A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',');}
+function scheduleWord(word){
+  const ch=word.toLowerCase().replace(/[^a-z]/g,''); if(!ch) return;
+  pokeForm(.42+Math.min(.58,ch.length/9));
+}
+
+/* ══════════ BREATHING ══════════ */
+let breath=null,bPhase=0,bCycle=0,bT=0,bScale=.5,bLabel='',bCount=0;
+const PATTERNS={
+  box:{name:'Box breathing',steps:[['Breathe in',4],['Hold',4],['Breathe out',4],['Hold',4]],cycles:5,
+    intro:"Box breathing. Four in, four held, four out, four held. Five rounds. Follow the ring, and let your shoulders drop."},
+  s478:{name:'4-7-8',steps:[['Breathe in',4],['Hold',7],['Breathe out',8]],cycles:4,
+    intro:"Four, seven, eight. This one slows the heart. Four rounds, then put the phone down and stay where you are."},
+  reset:{name:'Sixty-second reset',steps:[['Breathe in',4],['Breathe out',6]],cycles:6,
+    intro:"Sixty seconds. In for four, out for six. Longer out than in, that's the part that settles you."}
+};
+function startBreath(k){
+  const p=PATTERNS[k]; breath=p; bPhase=0; bCycle=0; bT=0; bLabel=p.steps[0][0];
+  setMode('calm'); document.getElementById('zen').classList.add('on'); resize();
+  respond(`<b>${p.name}.</b><br><br>${p.intro}`, p.intro, 'hush');
+  setTimeout(()=>{ bT=performance.now(); },3200);
+}
+function stopBreath(){ breath=null; bLabel=''; bScale=.5;
+  document.getElementById('zen').classList.remove('on'); setMode('work'); }
+function tickBreath(){
+  if(!breath||!bT) return;
+  const [lab,dur]=breath.steps[bPhase], el=(performance.now()-bT)/1000, p=Math.min(el/dur,1);
+  bLabel=lab; bCount=Math.max(1,Math.ceil(dur-el));
+  const e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  if(/in/i.test(lab)) bScale=.42+e*.58;
+  else if(/out/i.test(lab)) bScale=1-e*.58;
+  else bScale=bPhase===1?1:.42;
+  document.getElementById('zlab').textContent=lab;
+  document.getElementById('zcnt').textContent=bCount;
+  if(p>=1){
+    bPhase++;
+    if(bPhase>=breath.steps.length){ bPhase=0; bCycle++;
+      if(bCycle>=breath.cycles){ const n=breath.name; stopBreath();
+        respond(`<b>Done.</b><br><br>That's ${n} finished, Guhan. Notice your shoulders — they're lower than when you started.`,
+                `That's ${n} finished, Guhan. Notice your shoulders. They're lower than when you started.`,'hush'); return; } }
+    bT=performance.now();
+    if(voiceOn) speakSoft(breath.steps[bPhase][0]);
+  }
+}
+/* ══════════ WHERE HE IS, AND WHAT IT IS DOING THERE ══════════
+   Open-Meteo needs no key and allows cross-origin requests, so a static page
+   can ask it directly. The place and its coordinates live in the feed sheet,
+   not in this file, so when he is in Chennai or Daegu the weather follows him
+   without a rebuild. If the call fails she falls back to whatever the morning
+   task wrote into the feed, and if that is missing too she says nothing at all
+   rather than showing a broken row. */
+let PLACE='Tiruchendur', COORD='8.4956,78.1195';
+const WX={ok:false, t:null, feels:null, code:null, hi:null, lo:null, rain:null, text:'', fallback:''};
+
+const WMO={
+  0:['clear','Clear'],1:['clear','Mostly clear'],2:['cloud','Partly cloudy'],3:['cloud','Overcast'],
+  45:['fog','Fog'],48:['fog','Freezing fog'],
+  51:['drizzle','Light drizzle'],53:['drizzle','Drizzle'],55:['drizzle','Heavy drizzle'],
+  56:['drizzle','Freezing drizzle'],57:['drizzle','Freezing drizzle'],
+  61:['rain','Light rain'],63:['rain','Rain'],65:['rain','Heavy rain'],
+  66:['rain','Freezing rain'],67:['rain','Freezing rain'],
+  71:['snow','Light snow'],73:['snow','Snow'],75:['snow','Heavy snow'],77:['snow','Snow grains'],
+  80:['shower','Showers'],81:['shower','Showers'],82:['shower','Violent showers'],
+  85:['snow','Snow showers'],86:['snow','Snow showers'],
+  95:['storm','Thunderstorm'],96:['storm','Thunderstorm with hail'],99:['storm','Thunderstorm with hail']
+};
+const WXGLYPH={clear:'☀',cloud:'◒',fog:'≈',drizzle:'′',
+  rain:'▓',shower:'░',snow:'❄',storm:'⚡'};
+
+async function loadWeather(){
+  const c=String(COORD).split(',').map(x=>parseFloat(x.trim()));
+  if(c.length<2 || isNaN(c[0]) || isNaN(c[1])) return false;
+  const u='https://api.open-meteo.com/v1/forecast?latitude='+c[0]+'&longitude='+c[1]+
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code'+
+    '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max'+
+    '&timezone=auto&forecast_days=1';
+  try{
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const j=await r.json();
+    const cur=j.current||{}, d=j.daily||{};
+    WX.t=Math.round(cur.temperature_2m);
+    WX.feels=Math.round(cur.apparent_temperature);
+    WX.code=cur.weather_code;
+    WX.hi=d.temperature_2m_max?Math.round(d.temperature_2m_max[0]):null;
+    WX.lo=d.temperature_2m_min?Math.round(d.temperature_2m_min[0]):null;
+    WX.rain=d.precipitation_probability_max?d.precipitation_probability_max[0]:null;
+    const w=WMO[WX.code]||['cloud','—'];
+    WX.text=w[1]; WX.kind=w[0]; WX.ok=!isNaN(WX.t);
+    return WX.ok;
+  }catch(e){ WX.ok=false; return false; }
+}
+
+/* one short line, or nothing */
+function wxLine(){
+  if(WX.ok){
+    const g=WXGLYPH[WX.kind]||'';
+    let s=`${g} ${WX.t}° ${WX.text.toLowerCase()}`;
+    /* one extra fact, never two — this has to hold one line on a phone */
+    if(WX.rain!=null && WX.rain>=40) s+=` · ${WX.rain}% rain`;
+    else if(WX.feels!=null && WX.feels-WX.t>=3) s+=` · feels ${WX.feels}°`;
+    else if(WX.hi!=null && WX.lo!=null) s+=` · ${WX.lo}–${WX.hi}°`;
+    return s;
+  }
+  return WX.fallback||'';
+}
+function wxSpoken(){
+  if(WX.ok){
+    let s=`It is ${WX.t} degrees in ${PLACE}, ${WX.text.toLowerCase()}`;
+    if(WX.feels!=null && WX.feels-WX.t>=3) s+=`, feeling more like ${WX.feels}`;
+    if(WX.hi!=null && WX.lo!=null) s+=`. Today runs between ${WX.lo} and ${WX.hi}`;
+    if(WX.rain!=null && WX.rain>=35) s+=`, and there is a ${WX.rain} percent chance of rain`;
+    return s+'.';
+  }
+  if(WX.fallback) return `In ${PLACE}, ${WX.fallback}.`;
+  return `I couldn't reach the weather just now, Guhan.`;
+}
+/* ══════════ THE FIVE ELEMENTS ══════════
+   Everything that leaves her core is one of five, and which one is leaving is
+   how she shows what she feels.
+
+     EARTH   prithvi   glowing dust, spiralling out slowly. Her resting state.
+     WATER   jal       rings breaking outward from the centre. Calm, breath, care.
+     FIRE    agni      embers climbing and burning down. Encouragement.
+     AIR     vayu      fast curved currents streaming outward. Movement, urgency.
+     ETHER   akasha    a slow luminous veil, and lightning as its discharge.
+
+   They are never exclusive. Urgency is air with ether cracking through it and a
+   little fire underneath; encouragement is fire over earth. Everything is held
+   in units of R so the same weather renders correctly in the 52-pixel header
+   orb, the breathing overlay and the full-screen launch canvas from one
+   simulation. Feeling arrives fast and leaves slowly, the way it does in a
+   person. */
+
+const SPR={};
+const qc=v=>Math.round(v/16)*16;
+function qrgb(str){ const a=String(str).split(','); return qc(+a[0])+','+qc(+a[1])+','+qc(+a[2]); }
+function sprite(rgb){
+  if(SPR[rgb]) return SPR[rgb];
+  const S=48, c=document.createElement('canvas'); c.width=c.height=S;
+  const g=c.getContext('2d'), r=S/2;
+  const gr=g.createRadialGradient(r,r,0,r,r,r);
+  gr.addColorStop(0,`rgba(${rgb},1)`); gr.addColorStop(.26,`rgba(${rgb},.46)`);
+  gr.addColorStop(.62,`rgba(${rgb},.11)`); gr.addColorStop(1,`rgba(${rgb},0)`);
+  g.fillStyle=gr; g.fillRect(0,0,S,S);
+  return SPR[rgb]=c;
+}
+const FIRE_HOT='255,250,236', FIRE_MID='255,190,112', FIRE_LOW='255,110,64';
+
+let motes=[], drops=[], flames=[], winds=[], veils=[], bolts=[];
+const EL=['earth','water','fire','air','ether'];
+const FXT={earth:.74, water:.06, fire:.16, air:.10, ether:.16, bolt:0};
+const FXV={earth:.74, water:.06, fire:.16, air:.10, ether:.16, bolt:0};
+let fxBurst=0;
+
+function setFX(o){ EL.forEach(k=>{ if(o[k]!=null) FXT[k]=o[k]; }); if(o.bolt!=null) FXT.bolt=o.bolt; }
+const FEELFX={
+  warm   :{earth:.78,water:.10,fire:.20,air:.12,ether:.18,bolt:0},
+  urgent :{earth:.28,water:0,  fire:.24,air:.88,ether:.55,bolt:1},
+  bright :{earth:.50,water:.04,fire:1,   air:.34,ether:.30,bolt:.10},
+  care   :{earth:.44,water:.72,fire:.04,air:.05,ether:.22,bolt:0},
+  hush   :{earth:.26,water:.62,fire:0,  air:0,  ether:.30,bolt:0},
+  wry    :{earth:.60,water:.12,fire:.28,air:.22,ether:.18,bolt:.04},
+  neutral:{earth:.66,water:.06,fire:.14,air:.10,ether:.16,bolt:0}
+};
+function applyFX(feel){ setFX(FEELFX[feel]||FEELFX.warm); }
+const TABFX={
+  home   :{earth:.80,water:.08,fire:.22,air:.12,ether:.24,bolt:.02},
+  today  :{earth:.74,water:.06,fire:.18,air:.12,ether:.18,bolt:0},
+  urgent :{earth:.34,water:0,  fire:.16,air:.60,ether:.40,bolt:.26},
+  health :{earth:.44,water:.62,fire:.03,air:.05,ether:.20,bolt:0},
+  horizon:{earth:.70,water:.05,fire:.08,air:.14,ether:.52,bolt:0},
+  ideas  :{earth:.50,water:.04,fire:.58,air:.20,ether:.26,bolt:.04},
+  learn  :{earth:.62,water:.08,fire:.06,air:.30,ether:.34,bolt:0},
+  news   :{earth:.50,water:.14,fire:.05,air:.55,ether:.26,bolt:.02},
+  board  :{earth:.72,water:.06,fire:.16,air:.14,ether:.22,bolt:0}
+};
+function restFX(){ setFX(TABFX[TAB]||TABFX.today); }
+/* which element is loudest right now — she says so in the telemetry strip */
+function domEl(){ let b='earth',v=0; EL.forEach(k=>{ if(FXV[k]>v){v=FXV[k];b=k;} }); return b; }
+
+/* ── spawners ─────────────────────────────────────────────── */
+function spawnMote(){
+  if(motes.length>120) return;
+  const a=Math.random()*6.283, r=.30+Math.random()*.55;
+  motes.push({x:Math.cos(a)*r,y:Math.sin(a)*r,
+    sp:.0016+Math.random()*.0050, curl:(Math.random()<.5?-1:1)*(.0004+Math.random()*.0018),
+    life:2400+Math.random()*2600, max:5000, s:.55+Math.random()*1.25, ph:Math.random()*6.283});
+}
+function spawnDrop(){                       // water: a ring breaking outward
+  if(drops.length>9) return;
+  drops.push({r:.30, sp:.0034+Math.random()*.0030, life:1500+Math.random()*900, max:2400,
+    wob:.020+Math.random()*.034, ph:Math.random()*6.283, w:.9+Math.random()*.9});
+}
+function spawnFlame(){
+  if(flames.length>100) return;
+  const a=Math.random()*6.283, r=.55+Math.random()*.35, sp=.004+Math.random()*.010;
+  flames.push({x:Math.cos(a)*r,y:Math.sin(a)*r, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-.004,
+    life:600+Math.random()*560, max:1160, s:.9+Math.random()*1.9});
+}
+function spawnWind(){                       // air: a curved current
+  if(winds.length>34) return;
+  const a=Math.random()*6.283;
+  winds.push({a, r:.52+Math.random()*.24,
+    sp:.0075+Math.random()*.0085, curl:(Math.random()<.5?-1:1)*(.0055+Math.random()*.0085),
+    life:520+Math.random()*420, max:940, w:.55+Math.random()*.85, tail:.16+Math.random()*.20});
+}
+function spawnVeil(){                       // ether: a slow luminous sheet
+  if(veils.length>4) return;
+  const a=Math.random()*6.283;
+  veils.push({a, r:1.02+Math.random()*.30, span:.7+Math.random()*1.1,
+    sp:(Math.random()<.5?-1:1)*(.00016+Math.random()*.00034),
+    life:3000+Math.random()*2600, max:5600, w:.10+Math.random()*.16});
+}
+function spawnBolt(){
+  if(bolts.length>7) return;
+  const seg=6+((Math.random()*4)|0), len=.52+Math.random()*.42;
+  let ang=Math.random()*6.283, r=.56;
+  const pts=[[Math.cos(ang)*r,Math.sin(ang)*r]];
+  for(let i=0;i<seg;i++){ r+=len/seg; ang+=(Math.random()-.5)*.44; pts.push([Math.cos(ang)*r,Math.sin(ang)*r]); }
+  const forks=[];
+  if(Math.random()<.65){
+    const i=2+((Math.random()*(seg-2))|0), p=pts[i];
+    let fr=Math.hypot(p[0],p[1]), fa=Math.atan2(p[1],p[0])+(Math.random()-.5)*1.2;
+    const fp=[p];
+    for(let j=0;j<3;j++){ fr+=.15; fa+=(Math.random()-.5)*.55; fp.push([Math.cos(fa)*fr,Math.sin(fa)*fr]); }
+    forks.push(fp);
+  }
+  bolts.push({pts,forks,life:80+Math.random()*100,max:180,w:.6+Math.random()*.8});
+}
+/* a tap pushes energy through whatever she is currently made of */
+function pulseFX(s){ s=s||1; fxBurst=Math.min(1.2,fxBurst+s*.7); spawnDrop();
+  if(FXV.air>.3) for(let i=0;i<3;i++) spawnWind();
+  if(FXV.bolt>.4 && Math.random()<.5) spawnBolt(); }
+
+function stepFX(dt){
+  const k=Math.min(3,dt/16.7);
+  const ease=(v,t,up,dn)=>v+(t-v)*(t>v?up:dn)*k;
+  FXV.earth=ease(FXV.earth,FXT.earth,.10,.030);
+  FXV.water=ease(FXV.water,FXT.water,.13,.030);
+  FXV.fire =ease(FXV.fire ,FXT.fire ,.15,.035);
+  FXV.air  =ease(FXV.air  ,FXT.air  ,.18,.040);
+  FXV.ether=ease(FXV.ether,FXT.ether,.09,.025);
+  FXV.bolt =ease(FXV.bolt ,FXT.bolt ,.20,.045);
+  fxBurst*=.94;
+  const E=FXV.earth+fxBurst*.4, W=FXV.water+fxBurst*.3, F=FXV.fire+fxBurst*.5,
+        A=Math.min(1.5,FXV.air+fxBurst*.6), H=FXV.ether+fxBurst*.2,
+        B=Math.min(1.4,FXV.bolt+fxBurst*.8);
+
+  let nd=(.12+E*.80)*k; while(nd-->0) spawnMote();
+  if(Math.random()<W*.055*k) spawnDrop();
+  let nf=F*2.6*k; while(nf-->0) if(Math.random()<Math.min(1,F*2.6*k)) spawnFlame();
+  let na=A*1.5*k; while(na-->0) if(Math.random()<Math.min(1,A*1.5*k)) spawnWind();
+  if(Math.random()<H*.028*k) spawnVeil();
+  if(Math.random()<B*.30*k) spawnBolt();
+  if(B>.55 && Math.random()<B*.10*k) spawnBolt();
+
+  for(const p of motes){ const r=Math.hypot(p.x,p.y)+p.sp*k, a=Math.atan2(p.y,p.x)+p.curl*k;
+    p.x=Math.cos(a)*r; p.y=Math.sin(a)*r; p.life-=dt; }
+  if(motes.length) motes=motes.filter(p=>p.life>0 && (p.x*p.x+p.y*p.y)<2.30);
+
+  for(const d of drops){ d.r+=d.sp*k; d.life-=dt; }
+  if(drops.length) drops=drops.filter(d=>d.life>0 && d.r<1.55);
+
+  for(const p of flames){ p.x+=p.vx*k; p.y+=p.vy*k; p.vy-=.00019*k; p.vx*=.988; p.vy*=.988;
+    p.x+=(Math.random()-.5)*.004*k; p.life-=dt*(1+(1-FXV.fire)*.8); }
+  if(flames.length) flames=flames.filter(p=>p.life>0);
+
+  for(const w of winds){ w.r+=w.sp*k; w.a+=w.curl*k; w.life-=dt; }
+  if(winds.length) winds=winds.filter(w=>w.life>0 && w.r<1.50);
+
+  for(const v of veils){ v.a+=v.sp*k; v.life-=dt; }
+  if(veils.length) veils=veils.filter(v=>v.life>0);
+
+  for(const b of bolts) b.life-=dt;
+  if(bolts.length) bolts=bolts.filter(b=>b.life>0);
+}
+
+/* ── drawn inside drawForm, so every canvas shows the same weather ── */
+function drawFX(c,R,glow){
+  const A=o=>`rgba(${paA},${o})`, B=o=>`rgba(${paB},${o})`;
+  const k=Math.min(1,R/78);
+  const AM=.28+k*.72, RM=.50+k*.50, stride=R<26?3:R<46?2:1;
+  const prev=c.globalCompositeOperation;
+  c.globalCompositeOperation='lighter';
+
+  /* ── ETHER: the veil, furthest out and slowest ── */
+  for(const v of veils){
+    const t=v.life/v.max, a=(t>.8?(1-t)/.2:Math.min(1,t*2.6))*(.10+glow*.16)*AM*(.4+FXV.ether);
+    if(a<=.012) continue;
+    c.beginPath(); c.arc(0,0,R*v.r,v.a,v.a+v.span);
+    c.strokeStyle=B(a*1.3); c.lineWidth=R*v.w*RM; c.lineCap='round'; c.stroke();
+  }
+
+  /* ── AIR: currents streaming outward and curling ── */
+  for(let i=0;i<winds.length;i+=stride){
+    const w=winds[i], t=w.life/w.max;
+    const a=(t>.75?(1-t)/.25:Math.min(1,t*3))*(.30+glow*.40)*AM;
+    if(a<=.014) continue;
+    c.beginPath();
+    for(let s=0;s<=6;s++){
+      const f=s/6, ang=w.a-w.curl*f*160, rr=R*(w.r-w.tail*f);
+      const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr;
+      s?c.lineTo(x,y):c.moveTo(x,y);
+    }
+    c.strokeStyle=A(a*1.25); c.lineWidth=w.w*1.5*RM; c.lineCap='round'; c.stroke();
+  }
+
+  /* ── EARTH: dust ── */
+  const sA=sprite(qrgb(paA)), sB=sprite(qrgb(paB));
+  for(let i=0;i<motes.length;i+=stride){
+    const p=motes[i], t=p.life/p.max;
+    const fade=t>.85?(1-t)/.15:Math.min(1,t*3.2), tw=.55+.45*Math.sin(T*.004+p.ph);
+    const rq=p.x*p.x+p.y*p.y, edge=rq>1.30?Math.max(0,1-(rq-1.30)/1.00):1;
+    const a=fade*tw*(.34+glow*.5)*(.45+FXV.earth*.85)*AM*edge;
+    if(a<=.014) continue;
+    const rr=p.s*(1+glow*.5)*3.6*RM;
+    c.globalAlpha=a; c.drawImage(p.ph>3.14?sB:sA, p.x*R-rr, p.y*R-rr, rr*2, rr*2);
+  }
+
+  /* ── FIRE: embers ── */
+  const fH=sprite(FIRE_HOT), fM=sprite(FIRE_MID), fL=sprite(FIRE_LOW);
+  for(let i=0;i<flames.length;i+=stride){
+    const p=flames[i], t=1-p.life/p.max;
+    const rq=p.x*p.x+p.y*p.y, edge=rq>1.30?Math.max(0,1-(rq-1.30)/0.90):1;
+    const a=(1-t)*(1-t)*(.62+glow*.42)*AM*.85*edge;
+    if(a<=.016) continue;
+    const rr=p.s*(1.7-t*.95)*(1+glow*.35)*3.2*RM;
+    c.globalAlpha=a; c.drawImage(t<.28?fH:t<.66?fM:fL, p.x*R-rr, p.y*R-rr, rr*2, rr*2);
+  }
+  c.globalAlpha=1;
+
+  /* ── WATER: rings breaking outward, wobbling as they widen ── */
+  for(const d of drops){
+    const t=d.life/d.max, a=(t>.85?(1-t)/.15:Math.min(1,t*2.2))*(.26+glow*.30)*AM;
+    if(a<=.012) continue;
+    c.beginPath();
+    for(let s=0;s<=26;s++){
+      const ang=s/26*6.283;
+      const rr=R*(d.r + Math.sin(ang*3+d.ph+T*.0016)*d.wob*(1-t*.4));
+      const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr;
+      s?c.lineTo(x,y):c.moveTo(x,y);
+    }
+    c.closePath();
+    c.strokeStyle=B(a*1.2); c.lineWidth=d.w*1.6*RM;
+    if(RM>.8){ c.shadowBlur=12; c.shadowColor=B(.5); } c.stroke(); c.shadowBlur=0;
+  }
+
+  /* ── ETHER's discharge: lightning ── */
+  for(const b of bolts){
+    const t=b.life/b.max, a=Math.min(1,t*1.7);
+    if(a<=.03) continue;
+    const stroke=(pts,w,col)=>{ c.beginPath();
+      for(let i=0;i<pts.length;i++){ const x=pts[i][0]*R, y=pts[i][1]*R; i?c.lineTo(x,y):c.moveTo(x,y); }
+      c.strokeStyle=col; c.lineWidth=w; c.lineCap='round'; c.lineJoin='round'; c.stroke(); };
+    const LW=Math.max(.45,RM);
+    c.shadowBlur=(10+glow*20)*RM; c.shadowColor=A(.85);
+    stroke(b.pts, b.w*3.6*(1+glow*.4)*LW, A(a*.30*AM));
+    stroke(b.pts, b.w*1.5*LW, `rgba(255,246,232,${a*.95*AM})`);
+    for(const f of b.forks){ stroke(f, b.w*2.2*LW, A(a*.22*AM));
+      stroke(f, b.w*.9*LW, `rgba(255,246,232,${a*.7*AM})`); }
+    c.shadowBlur=0;
+  }
+
+  c.globalCompositeOperation=prev;
+}
+/* ── ASTRA as a living light-form: no face, nothing to contradict the voice ── */
+const BINS=110;
+const wave=new Float32Array(BINS), waveT=new Float32Array(BINS), wSeed=new Float32Array(BINS);
+for(let i=0;i<BINS;i++) wSeed[i]=Math.random()*6.283;
+let ripples=[], coreP=0, coreT=0;
+
+function pokeForm(strength){
+  const s=Math.max(.25,Math.min(1,strength));
+  for(let i=0;i<BINS;i++){
+    const lobe=.42+.58*Math.abs(Math.sin(i*.19+wSeed[i]));
+    waveT[i]=Math.max(waveT[i], s*lobe*(.55+Math.random()*.65));
+  }
+  coreT=Math.max(coreT,s);
+  if(ripples.length<14) ripples.push({r:.34,a:.55*s});
+}
+
+/* filaments that drift around the core */
+const fils=Array.from({length:26},(_,i)=>({
+  a:Math.random()*6.283, r:.62+Math.random()*.46, len:.5+Math.random()*1.5,
+  sp:(Math.random()<.5?-1:1)*(.00012+Math.random()*.00042),
+  w:.5+Math.random()*1.3, ph:Math.random()*6.283, tw:.0006+Math.random()*.0016}));
+
+function drawForm(ctx,cx,cy,S,glow){
+  const A=(o)=>`rgba(${paA},${o})`, B=(o)=>`rgba(${paB},${o})`;
+  const R=S*(breath? .58+bScale*.42 : .80);
+
+  // decay
+  for(let i=0;i<BINS;i++){ wave[i]+=(waveT[i]-wave[i])*.26; waveT[i]*=.885; }
+  coreP+=(coreT-coreP)*.20; coreT*=.90;
+  ripples.forEach(p=>{ p.r+=.011+p.a*.02; p.a*=.968; });
+  ripples=ripples.filter(p=>p.a>.02 && p.r<1.9);
+
+  ctx.save(); ctx.translate(cx,cy);
+
+  /* outer aura */
+  const au=ctx.createRadialGradient(0,0,R*.15,0,0,R*1.85);
+  au.addColorStop(0,B(.13+glow*.13)); au.addColorStop(.45,A(.06+glow*.08)); au.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=au; ctx.beginPath(); ctx.arc(0,0,R*1.85,0,6.283); ctx.fill();
+
+  /* drifting filaments */
+  fils.forEach(f=>{
+    f.a+=f.sp*(1+glow*2.4);
+    const wob=Math.sin(T*f.tw+f.ph)*.10;
+    ctx.beginPath();
+    for(let t=0;t<=1.001;t+=.08){
+      const ang=f.a+t*f.len*(.55+wob), rr=R*(f.r+t*.30+Math.sin(T*f.tw*1.5+f.ph+t*4)*.03);
+      const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr*.98;
+      t?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.strokeStyle=A(.10+glow*.26); ctx.lineWidth=f.w*(.8+glow*.7); ctx.lineCap='round';
+    ctx.shadowBlur=8+glow*16; ctx.shadowColor=A(.4); ctx.stroke(); ctx.shadowBlur=0;
+  });
+
+  /* expanding ripples on each word */
+  ripples.forEach(p=>{
+    ctx.beginPath(); ctx.arc(0,0,R*p.r,0,6.283);
+    ctx.strokeStyle=B(p.a*.7); ctx.lineWidth=1.1+p.a*1.6; ctx.stroke();
+  });
+
+  /* the voice ring — a closed curve that blooms with speech */
+  const amp=R*(.115+glow*.10);
+  const ring=(off,alpha,lw,mul)=>{
+    ctx.beginPath();
+    for(let i=0;i<=BINS;i++){
+      const k=i%BINS, ang=k/BINS*6.283-Math.PI/2;
+      const idle=Math.sin(T*.0011+wSeed[k]*.7)*.16+Math.sin(T*.0026+k*.35)*.10;
+      const rr=R*(1+off) + (wave[k]*mul+idle*.35)*amp;
+      const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle=alpha; ctx.lineWidth=lw;
+    ctx.shadowBlur=16+glow*30; ctx.shadowColor=A(.5); ctx.stroke(); ctx.shadowBlur=0;
+  };
+  ring(.20, B(.16+glow*.24), 1.0, .55);
+  ring(.09, A(.26+glow*.34), 1.3, .82);
+  ring(0,   A(.54+glow*.42), 2.0, 1.0);
+
+  /* plasma core */
+  ctx.save();
+  ctx.beginPath();
+  for(let i=0;i<=BINS;i++){
+    const k=i%BINS, ang=k/BINS*6.283-Math.PI/2;
+    const idle=Math.sin(T*.0011+wSeed[k]*.7)*.16+Math.sin(T*.0026+k*.35)*.10;
+    const rr=R+(wave[k]+idle*.35)*amp;
+    const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.closePath(); ctx.clip();
+
+  const base=ctx.createRadialGradient(0,-R*.12,R*.05,0,0,R*1.05);
+  base.addColorStop(0,A(.60+coreP*.34)); base.addColorStop(.42,A(.20+coreP*.20));
+  base.addColorStop(.78,B(.09+coreP*.12)); base.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=base; ctx.fillRect(-R*1.4,-R*1.4,R*2.8,R*2.8);
+
+  for(let i=0;i<4;i++){
+    const px=Math.sin(T/(3400+i*1450)+i)*R*.40, py=Math.cos(T/(4100+i*1200)+i*1.7)*R*.36;
+    const pr=R*(.34+.16*Math.sin(T/(2600+i*900)));
+    const pg=ctx.createRadialGradient(px,py,0,px,py,pr);
+    pg.addColorStop(0,(i%2?B:A)(.16+coreP*.22)); pg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pg; ctx.fillRect(-R*1.4,-R*1.4,R*2.8,R*2.8);
+  }
+  if(false){
+    ctx.globalAlpha=.55;
+    const s=Math.max(R*2/portrait.width,R*2/portrait.height)*1.05;
+    const w=portrait.width*s,h=portrait.height*s;
+    ctx.drawImage(portrait,-w/2,-h/2+Math.sin(T/1900)*2,w,h);
+    ctx.globalAlpha=1;
+  }
+  // slow inner swell
+  const sw=R*(.52+.10*Math.sin(T/2600));
+  const sg=ctx.createRadialGradient(0,R*.10,0,0,R*.10,sw);
+  sg.addColorStop(0,B(.05+glow*.07)); sg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=sg; ctx.fillRect(-R*1.4,-R*1.4,R*2.8,R*2.8);
+  ctx.restore();
+
+  /* the weather she is making — lightning, fire, dust */
+  drawFX(ctx,R,glow);
+
+  /* bright nucleus */
+  const nr=R*(.13+coreP*.10+(breath?bScale*.05:0));
+  const ng=ctx.createRadialGradient(0,0,0,0,0,nr*2.4);
+  ng.addColorStop(0,'rgba(255,255,255,'+(.55+coreP*.35)+')');
+  ng.addColorStop(.30,A(.62+coreP*.30)); ng.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ng; ctx.beginPath(); ctx.arc(0,0,nr*2.4,0,6.283);
+  ctx.shadowBlur=24+coreP*40; ctx.shadowColor=A(.7); ctx.fill(); ctx.shadowBlur=0;
+
+  ctx.restore();
+}
+
+/* ══════════ VOICE ══════════ */
+let voiceOn=true, VOICE=null;
+let VLIST=[];
+function rankVoice(v){
+  let s=0; const n=v.name;
+  if(/premium|enhanced|natural|neural/i.test(n)) s+=60;      // the good ones
+  if(/^Google/i.test(n)) s+=34;
+  if(/Ava|Samantha|Serena|Allison|Sonia|Libby|Aria|Jenny|Zira|Karen|Moira|Fiona|Tessa|Nicky|Zoe|Isha|Veena|Rishi|Neerja/i.test(n)) s+=26;
+  if(/female/i.test(n)) s+=14;
+  if(/en-GB/i.test(v.lang)) s+=12; if(/en-IN/i.test(v.lang)) s+=10; if(/en-US/i.test(v.lang)) s+=6;
+  if(/compact|eloquence|espeak/i.test(n)) s-=50;             // the robotic ones
+  return s;
+}
+function pickVoice(){
+  VLIST=speechSynthesis.getVoices().filter(x=>/^en/i.test(x.lang)).sort((a,b)=>rankVoice(b)-rankVoice(a));
+  return VLIST[0]||null;
+}
+/* the named ones he was told to download, so they sit at the very top */
+const PREFERRED=/^(Ava|Samantha|Zoe|Allison|Susan|Nicky|Serena|Karen|Moira|Tessa|Fiona|Martha|Sonia|Isha|Veena|Rishi|Google UK English Female|Google US English)/i;
+
+function sampleLine(){
+  return `This is Guhan's assistant. Listen for a moment. Is there warmth in this one, or is it flat?`;
+}
+function pickThisVoice(v){
+  VOICE=v; PREF.voice=v.name; savePrefs(); labelVoice();
+  document.querySelectorAll('.vrow').forEach(r=>r.classList.toggle('on', r.dataset.vn===v.name));
+  speechSynthesis.cancel(); speaking=false;
+  speak(sampleLine(),'warm');
+}
+let showAllVoices=false;
+function allVoices(){ try{ return speechSynthesis.getVoices()||[]; }catch(_){ return []; } }
+function openVoices(){
+  /* ALWAYS re-ask. iOS hands the list over late and in pieces, so a list cached
+     at boot is exactly why a voice downloaded five minutes ago is missing. */
+  const raw=allVoices();
+  VLIST=(showAllVoices?raw.slice():raw.filter(x=>/^en/i.test(x.lang)))
+        .sort((a,b)=>rankVoice(b)-rankVoice(a));
+  if(!VOICE && VLIST.length) VOICE=VLIST[0];
+  const box=document.getElementById('vlist');
+  if(!raw.length){
+    box.innerHTML='<div class="vh">This browser hasn\'t handed me any voices yet. Tap the microphone once, close this, and open it again.</div>';
+  } else if(!VLIST.length){
+    box.innerHTML='<div class="vh">No English voices offered. Turn on <b>show every language</b> below.</div>';
+  } else {
+    const best=VLIST.filter(v=>PREFERRED.test(v.name)||/premium|enhanced|natural|neural/i.test(v.name));
+    const rest=VLIST.filter(v=>best.indexOf(v)<0);
+    const row=v=>`<div class="vrow${VOICE&&v.name===VOICE.name?' on':''}" data-vn="${esc(v.name)}">
+        <span class="nm">${esc(v.name.replace(/^(Microsoft|Google)\s+/,''))}</span>
+        <span class="lg">${esc(v.lang)}</span><span class="tick">&#10003;</span></div>`;
+    box.innerHTML =
+      (best.length?`<div class="vg">Best on this phone</div>`+best.map(row).join(''):'')+
+      (rest.length?`<div class="vg">Everything else</div>`+rest.map(row).join(''):'');
+  }
+  /* how she speaks — his ear, his call */
+  const hb=document.getElementById('hlist');
+  if(hb){
+    const sl=(id,lab,min,max,val,note)=>`<div class="tune">
+        <div class="tl"><span>${lab}</span><b id="${id}v">${val.toFixed(2)}</b></div>
+        <input type="range" id="${id}" min="${min}" max="${max}" step="0.01" value="${val}">
+        <div class="tn">${note}</div></div>`;
+    hb.innerHTML =
+      `<div class="vg">How she speaks</div>`+
+      sl('tPace','Pace',0.72,1.20,PREF.pace,'slower on the left, quicker on the right')+
+      sl('tPitch','Pitch',0.86,1.14,PREF.pitch,'lower or higher overall')+
+      sl('tExpr','Expression',0,1.60,PREF.expr,'flat on the left, all the rise and fall on the right')+
+      `<div class="tp" style="margin:4px 0 2px">
+         <span class="qc" id="tHear">Hear it</span>
+         <span class="qc" id="tReset">Back to default</span></div>`;
+  }
+
+  /* the honest footer: what this browser actually offered, and a way to see all of it */
+  const en=raw.filter(x=>/^en/i.test(x.lang)).length;
+  const f=document.getElementById('vdiag');
+  if(f) f.innerHTML=`This browser offered <b>${raw.length}</b> voices, <b>${en}</b> of them English.`+
+    `<span id="vall">${showAllVoices?'show English only':'show every language'}</span>`;
+  document.getElementById('vsheet').classList.add('on');
+  bindTuners();
+}
+function toggleAllVoices(){ showAllVoices=!showAllVoices; openVoices(); }
+const TUNE_LINE = `Good evening, Guhan. Three things need you today, and the Korea documents are the one I would start with. WCNR is sixteen days away. Is that the pace you want?`;
+function bindTuners(){
+  [['tPace','pace'],['tPitch','pitch'],['tExpr','expr']].forEach(([id,k])=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.oninput=()=>{ PREF[k]=parseFloat(el.value);
+      const v=document.getElementById(id+'v'); if(v) v.textContent=PREF[k].toFixed(2); savePrefs(); };
+    el.onchange=()=>speak(TUNE_LINE,'warm');
+  });
+  const h=document.getElementById('tHear'); if(h) h.onclick=()=>speak(TUNE_LINE,'warm');
+  const r=document.getElementById('tReset'); if(r) r.onclick=()=>{
+    PREF.pace=1; PREF.pitch=1; PREF.expr=1; savePrefs(); openVoices(); speak(TUNE_LINE,'warm'); };
+}
+function closeVoices(){ document.getElementById('vsheet').classList.remove('on'); }
+function cycleVoice(){ openVoices(); }
+let hinted=false;
+function hintEnhanced(){
+  if(hinted) return; hinted=true;
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  setTimeout(()=>bubble(ios
+    ? `Your phone only has the plain voices — Settings, Accessibility, Spoken Content, Voices, English, then download Ava or Samantha Enhanced. I'll sound human after that.`
+    : `Your browser only has the plain voices. Chrome carries better ones — open me in Chrome and I'll sound human.`),9000);
+}
+if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=()=>{VOICE=pickVoice()}; VOICE=pickVoice(); }
+const statusEl=document.getElementById('status');
+function setStatus(s,c){ statusEl.textContent=s; statusEl.className='status'+(c?' '+c:''); }
+
+const SAY=[[/\brTMS\b/g,'R T M S'],[/\btDCS\b/g,'T D C S'],[/\bWCNR\b/g,'W C N R'],
+ [/\bIANCON\b/g,'Ian-con'],[/\bTANCON\b/g,'Tan-con'],[/\bIFNRCON\b/g,'I F N R con'],
+ [/\bIAN\b/g,'I A N'],[/\bWFNR\b/g,'W F N R'],[/\bMGM\b/g,'M G M'],[/\bCV\b/g,'C V'],
+ [/\bTPA\b/g,'T P A'],[/\bOP\b/g,'O P'],[/\bBG\b/g,'B G'],[/\bFRCP\b/g,'F R C P'],
+ [/\bDrNB\b/g,'Doctor N B'],[/\bORCID\b/g,'or-kid'],[/₹\s?/g,'rupees '],[/\bRs\.?\s?/g,'rupees '],
+ [/\bsq ?ft\b/g,'square feet'],[/&/g,' and '],[/\bDr\.?\s/g,'Doctor '],
+ /* abbreviations that end in a full stop would otherwise chop a sentence in half */
+ [/\bProf\.?\s/g,'Professor '],[/\bMr\.\s/g,'Mister '],[/\bMrs\.\s/g,'Missus '],[/\bMs\.\s/g,'Miss '],
+ [/\bSt\.\s/g,'Saint '],[/\bNo\.\s*(?=\d)/g,'number '],[/\bapprox\.\s/gi,'approximately '],
+ [/\be\.g\.\s*/gi,'for example, '],[/\bi\.e\.\s*/gi,'that is, '],[/\betc\.?/gi,'and so on'],
+ [/\bvs\.?\s/gi,'versus '],[/\ba\.m\.?/gi,'am'],[/\bp\.m\.?/gi,'pm'],
+ [/ — /g,', '],[/ – /g,', '],[/—/g,', '],[/\.\.\./g,',']];
+function normalise(t){ SAY.forEach(([re,s])=>t=t.replace(re,s)); return t.replace(/\s+/g,' ').trim(); }
+
+/* ══════════ PROSODY — where the feeling comes from ══════════
+   A speech engine gives you one flat voice. Emotion is not in the voice,
+   it's in what you do to it sentence by sentence: pitch falls as a thought
+   completes, rises on a question, lifts on the word that matters, and the
+   silences between clauses are as expressive as the clauses. So every
+   response is broken into clauses and each clause is given its own rate,
+   pitch, volume and the length of the pause that follows it.            */
+
+/* his own settings, kept on his phone. Nothing here leaves the device. */
+const PREF={voice:'', pace:1, pitch:1, expr:1};
+function loadPrefs(){ try{ const j=JSON.parse(localStorage.getItem('astra.voice')||'{}');
+  ['voice','pace','pitch','expr'].forEach(k=>{ if(j[k]!=null) PREF[k]=j[k]; }); }catch(_){ } }
+function savePrefs(){ try{ localStorage.setItem('astra.voice',JSON.stringify(PREF)); }catch(_){ } }
+loadPrefs();
+
+const FEEL={
+  /*        rate  pitch  vol   pause  fall  lead-ins */
+  warm:   {r:0.94,p:1.00,v:0.97,g:1.30,f:0.105,li:["Right, ","So, ","Okay, "]},
+  neutral:{r:0.99,p:1.00,v:1.00,g:1.00,f:0.085,li:[]},
+  urgent: {r:1.06,p:1.05,v:1.00,g:0.70,f:0.055,li:["Look, ","Right, "]},
+  bright: {r:1.01,p:1.06,v:1.00,g:0.86,f:0.070,li:["Okay. ","Here's the thing. "]},
+  care:   {r:0.87,p:0.965,v:0.93,g:1.55,f:0.115,li:["Listen, ","Okay. "]},
+  wry:    {r:0.95,p:1.01,v:0.95,g:1.18,f:0.095,li:["Honestly, ","Look, "]},
+  hush:   {r:0.79,p:0.945,v:0.86,g:1.95,f:0.125,li:[]}
+};
+/* she reads the room: what is being said decides how it is said */
+function readFeel(t){
+  const s=' '+t.toLowerCase()+' ';
+  if(mode==='calm'||/breath|shoulders|wind down|sixty seconds|put the phone down/.test(s)) return 'hush';
+  if(/it's late|get some sleep|rest now|none of them need you tonight/.test(s)) return 'care';
+  if(/overdue|urgent|today|deadline|slipping|behind|chasing|needs you|no longer optional/.test(s)) return 'urgent';
+  if(/well done|proud|you can|keep going|momentum|you've built|brilliant|good work|you are closer/.test(s)) return 'bright';
+  if(/honestly|to be fair|of course|as ever|still bothering me/.test(s)) return 'wry';
+  return 'warm';
+}
+/* the words a person leans on */
+const STRESS=/\b(only|still|now|today|tomorrow|must|never|always|first|before|biggest|one|actually|really|already|overdue|final|last|urgent|remember)\b/i;
+function clauseWeight(c){
+  let w=0;
+  if(STRESS.test(c)) w+=1;
+  if(/\d/.test(c)) w+=1;                       // numbers get said deliberately
+  if(/\b[A-Z]{2,}\b/.test(c)) w+=1;            // initialisms
+  if(/\bGuhan\b/.test(c)) w+=1;                // his name is said softly, not rattled off
+  return w;
+}
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+
+function planSpeech(text,feelName){
+  const clean=normalise(String(text).replace(/<[^>]+>/g,' '));
+  const F=FEEL[feelName]||FEEL.warm;
+  let sents=(clean.match(/[^.!?…]+[.!?…]*/g)||[clean]).map(s=>s.trim()).filter(Boolean);
+  /* a bare "1." is not a sentence — glue list numbers to what they label */
+  sents=sents.reduce((a,s)=>{ if(/^\d+[.)]?$/.test(s)&&a.length) a.push(s.replace(/[.)]$/,'')+','); else if(a.length&&/^\d+,$/.test(a[a.length-1])) a[a.length-1]+=' '+s; else a.push(s); return a; },[])
+             .reduce((a,s)=>{ if(/^\d+,$/.test(s)) return a; a.push(s); return a; },[]);
+  const plan=[];
+  sents.forEach((s,si)=>{
+    const isQ=/\?\s*$/.test(s), isBang=/!\s*$/.test(s), lastSent=si===sents.length-1;
+    /* clause split — commas, semicolons, colons. no lookbehind: older Safari.
+       a colon inside a clock time is not a clause break, so hide it first */
+    const guard=s.replace(/(\d):(\d)/g,'$1$2');
+    let cl=(guard.match(/[^,;:]+[,;:]?\s*/g)||[guard]).map(x=>x.trim().replace(//g,':')).filter(Boolean);
+    /* a scrap of a clause is not worth its own breath — glue it on */
+    const merged=[];
+    cl.forEach(c=>{ if(merged.length && (c.replace(/\W/g,'').length<14 || merged[merged.length-1].replace(/\W/g,'').length<14))
+      merged[merged.length-1]+=' '+c; else merged.push(c); });
+    cl=merged.length?merged:[s];
+    /* one sentence = one pitch arc: starts up, settles down */
+    const drift=(Math.random()-.5)*0.045;
+    const N=cl.length;
+    cl.forEach((c,ci)=>{
+      const pos = N>1 ? ci/(N-1) : (N===1?0.55:1);
+      const w   = clauseWeight(c);
+      const shortC = c.replace(/\W/g,'').length<26;
+      const X=PREF.expr;                       // how much shape he wants
+      let pitch = PREF.pitch*(F.p*palT.pitch) + (drift - F.f*pos + (Math.random()-.5)*0.022)*X;
+      let rate  = PREF.pace*(F.r*palT.rate) * (1 + ((shortC?0.045:0) + (/\d/.test(c)?-0.055:0) - w*0.028)*X)
+                                 * (1+(Math.random()*0.05-0.025)*X);
+      let vol   = F.v * (pos>0.72 ? 0.955 : 1);
+      if(w){ pitch += 0.035*Math.min(w,2)*X; vol = Math.min(1,vol+0.04); }   // lean in
+      if(isQ && ci===N-1){ pitch += 0.135*X; rate *= 1-(0.03*X); }            // the question lifts
+      if(isBang && ci===N-1){ pitch += 0.05*X; rate *= 1+(0.03*X); vol=Math.min(1,vol+.05); }
+      if(lastSent && ci===N-1 && !isQ){ pitch -= 0.05*X; rate *= 1-(0.05*X); }// and the thought lands
+      /* silence is expressive too */
+      const tail=c.slice(-1);
+      let gap = (/[.!?…]/.test(tail) ? 300 : tail===',' ? 145 : /[;:]/.test(tail) ? 210 : 105);
+      gap *= F.g * (0.88+Math.random()*0.28) * (0.72+PREF.expr*0.28) / Math.max(.6,PREF.pace);
+      const nxt=cl[ci+1]||sents[si+1]||'';
+      if(/^(but|still|and yet|however|though|honestly|look|the thing is)\b/i.test(nxt)) gap+=170;  // a beat before the turn
+      if(w>=2) gap+=60;
+      plan.push({t:c, rate:clamp(rate,.55,1.5), pitch:clamp(pitch,.62,1.6), vol:clamp(vol,.4,1), gap:Math.round(gap), w:w});
+    });
+  });
+  /* a small human lead-in, sometimes — never when she's meant to be soothing */
+  if(plan.length>2 && F.li.length && Math.random()<0.28 && !/^(right|so|okay|look|listen|honestly|good morning|good afternoon|good evening|evening|still up)/i.test(plan[0].t)){
+    const li=F.li[Math.floor(Math.random()*F.li.length)];
+    plan[0].t = li + plan[0].t.charAt(0).toLowerCase() + plan[0].t.slice(1);
+    plan[0].rate *= 0.96;
+  }
+  return plan;
+}
+
+let sayQueue=[], sayTimer=null;
+function speakChunks(text,feelName){ sayQueue=planSpeech(text,feelName); nextChunk(true); }
+function nextChunk(first){
+  if(!sayQueue.length){ speaking=false; envT=0; target=VIS.rest; brow=0;
+    clearInterval(visTimer); visTimer=null; setStatus('standing by');
+    if(typeof restFX==='function') setTimeout(()=>{ if(!speaking) restFX(); },900);
+    return; }
+  const it=sayQueue.shift(), t=it.t;
+  const u=new SpeechSynthesisUtterance(t);
+  try{ if(VOICE) u.voice=VOICE; }catch(_){}
+  u.rate=it.rate; u.pitch=it.pitch; u.volume=it.vol;
+  const words=t.split(/\s+/);
+  if(first) u.onstart=()=>{ speaking=true; brow=mode==='boost'?.35:.15; setStatus('speaking','on'); };
+  /* the light leans in exactly where the voice does */
+  if(it.w){ pokeForm(.55+it.w*.16); fxBurst=Math.min(1,fxBurst+it.w*.22); }
+  u.onboundary=(ev)=>{ envT=Math.min(1,.46+Math.random()*.5+it.w*.06);
+    let w=''; if(ev&&typeof ev.charIndex==='number'){const m=t.slice(ev.charIndex).match(/^[A-Za-z']+/); if(m)w=m[0];}
+    if(!w) w=words.shift()||'';
+    if(w) scheduleWord(w, Math.max(170, w.length*70/u.rate));
+    if(/[.,!?]/.test(t.charAt((ev&&ev.charIndex||0)-1))) emph=1; };
+  u.onend=()=>{ target=VIS.rest; envT=0;
+    clearTimeout(sayTimer); sayTimer=setTimeout(()=>nextChunk(false), it.gap); };
+  u.onerror=()=>{ speaking=false; target=VIS.rest; setStatus('standing by'); };
+  speechSynthesis.speak(u);
+}
+function speakDevice(text,fl){
+  if(!('speechSynthesis' in window)){speaking=false;setStatus('standing by');return;}
+  speechSynthesis.cancel(); clearTimeout(sayTimer); sayQueue=[];
+  speakChunks(text, fl);
+}
+function speak(text,feelName){
+  if(!voiceOn){speaking=false;setStatus('standing by');return;}
+  text = (typeof you==='function') ? you(text) : text;   // say his name, not mine
+  const fl = feelName || readFeel(String(text).replace(/<[^>]+>/g,' '));
+  applyFX(fl);                    // what she feels, she shows
+  try{ speechSynthesis.cancel(); }catch(_){}
+  clearTimeout(sayTimer); sayQueue=[];
+  if(typeof stopHosted==='function') stopHosted();
+  if(typeof hostedAvailable==='function' && hostedAvailable()){
+    speaking=true; setStatus('speaking','on');          // she is about to, so the orb wakes now
+    speakHosted(text,fl).then(okay=>{ if(!okay){ speaking=false; speakDevice(text,fl); } });
+    return;
+  }
+  speakDevice(text,fl);
+}
+function speakSoft(t){ if(!voiceOn) return; const u=new SpeechSynthesisUtterance(t);
+  try{ if(VOICE)u.voice=VOICE; }catch(_){}
+  u.rate=.74+Math.random()*.05; u.pitch=.93+(Math.random()-.5)*.03; u.volume=.9; speechSynthesis.speak(u); }
+
+/* ══════════ HER REAL VOICE ══════════
+   The phone's synthesiser has a ceiling and we reached it. When the hosted
+   voice is available she speaks generated audio instead: a whole passage sent
+   with a direction for how to deliver it, rather than clauses I have to fake
+   prosody onto. Her light is then driven by the actual waveform, so what you
+   see is what you hear rather than a guess.
+
+   If there is no signal, no key installed, or anything at all goes wrong, she
+   falls back to the device voice mid-sentence and never tells you twice. */
+
+const HOSTED_URL = (new URLSearchParams(location.search).get('say')) || '/api/say';
+const HOSTED_VOICES = [
+  ['coral',   'Coral',   'warm, expressive — the one I would choose'],
+  ['sage',    'Sage',    'calm and measured, a little lower'],
+  ['shimmer', 'Shimmer', 'soft and light'],
+  ['nova',    'Nova',    'bright and quick'],
+  ['ballad',  'Ballad',  'gentle, unhurried, English'],
+  ['verse',   'Verse',   'even and articulate'],
+  ['alloy',   'Alloy',   'neutral, almost broadcast'],
+  ['ash',     'Ash',     'dry and grounded'],
+  ['echo',    'Echo',    'clear, slightly cool'],
+  ['fable',   'Fable',   'storytelling warmth'],
+  ['onyx',    'Onyx',    'deep, male']
+];
+let hostedOn = false;                // off unless he ever turns it on himself
+let hostedVoice = 'coral';
+let hostedState = 'unknown';         // unknown | live | absent
+let hostedAudio = null, hostedCtx = null, hostedSrc = null, hostedAnalyser = null, hostedData = null;
+let hostedAbort = null;
+
+/* Off by default. He chose not to pay for generated speech, so she does not
+   reach for it and there is no round trip before she opens her mouth. The
+   plumbing stays, dormant, in case he ever changes his mind — one environment
+   variable and one tap in her voice sheet and it wakes up. */
+function hostedAvailable(){ return hostedOn && hostedState !== 'absent'; }
+
+/* the orb, driven by the real waveform instead of a guess */
+function hostedLevel(){
+  if(!hostedAnalyser) return 0;
+  hostedAnalyser.getByteTimeDomainData(hostedData);
+  let s=0; for(let i=0;i<hostedData.length;i+=4){ const v=(hostedData[i]-128)/128; s+=v*v; }
+  return Math.min(1, Math.sqrt(s/(hostedData.length/4))*3.4);
+}
+
+function stopHosted(){
+  try{ if(hostedAbort) hostedAbort.abort(); }catch(_){}
+  hostedAbort=null;
+  if(hostedAudio){ try{ hostedAudio.pause(); }catch(_){} hostedAudio.src=''; hostedAudio=null; }
+  hostedAnalyser=null;
+}
+
+async function speakHosted(text, feel){
+  const clean = normalise(String(text).replace(/<[^>]+>/g,' ')).slice(0,900);
+  if(!clean) return false;
+  stopHosted();
+  hostedAbort = new AbortController();
+  const t0 = performance.now();
+  try{
+    const r = await fetch(HOSTED_URL, {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({text:clean, feel, voice:hostedVoice}),
+      signal: hostedAbort.signal
+    });
+    if(!r.ok){ if(r.status===503||r.status===403||r.status===404) hostedState='absent'; return false; }
+    const buf = await r.blob();
+    if(!buf || buf.size < 200) return false;
+    hostedState='live';
+
+    const url = URL.createObjectURL(buf);
+    const a = new Audio(url); a.preload='auto';
+    hostedAudio = a;
+
+    /* wire the waveform to her light */
+    try{
+      hostedCtx = hostedCtx || new (window.AudioContext||window.webkitAudioContext)();
+      if(hostedCtx.state==='suspended') await hostedCtx.resume();
+      const src = hostedCtx.createMediaElementSource(a);
+      const an = hostedCtx.createAnalyser(); an.fftSize=512;
+      hostedData = new Uint8Array(an.fftSize);
+      src.connect(an); an.connect(hostedCtx.destination);
+      hostedAnalyser = an; hostedSrc = src;
+    }catch(_){ hostedAnalyser=null; }        // no analyser is survivable
+
+    speaking = true; setStatus('speaking','on');
+    a.onended = ()=>{ speaking=false; envT=0; hostedAnalyser=null;
+      URL.revokeObjectURL(url); setStatus('standing by');
+      if(typeof restFX==='function') setTimeout(()=>{ if(!speaking) restFX(); },900); };
+    a.onerror = ()=>{ speaking=false; hostedAnalyser=null; setStatus('standing by'); };
+    await a.play();
+    return true;
+  }catch(e){
+    if(e && e.name==='AbortError') return true;   // we cancelled it on purpose
+    return false;
+  }
+}
+
+/* audition: same line, so the comparison is fair */
+function auditionHosted(v){
+  hostedVoice = v;
+  document.querySelectorAll('.hrow').forEach(r=>r.classList.toggle('on', r.dataset.hv===v));
+  labelVoice();
+  speak(`This is Guhan's assistant. Listen for a moment. Is there warmth in this one, or is it flat?`,'warm');
+}
+/* ══════════ LIVE FEED ══════════ */
+/* Two homes, tried in order. If a feed.csv sits beside this page — which is how
+   it arrives on GitHub Pages — she reads that: same origin, no CORS, on a CDN,
+   and every version of it kept in the repo's history. If there is no such file,
+   she falls back to the Google Sheet, which is how she has always worked. A
+   ?feed= in the link overrides both and is used alone. Once one answers she
+   remembers it and stops trying the other. */
+const SHEET_FEED="https://docs.google.com/spreadsheets/d/1PfvsVira82Ci6o06EfmXnGZs_wjGpQ9Gzyr_h_7Htb8/gviz/tq?tqx=out:csv";
+const QS=new URLSearchParams(location.search);
+let feedHome='';                          // settles on whichever answered first
+function feedCandidates(){
+  const q=QS.get('feed');
+  if(q) return [decodeURIComponent(q)];
+  if(feedHome) return [feedHome];
+  return ['feed.csv', SHEET_FEED];
+}
+function feedURL(){ return feedCandidates()[0]; }
+
+function parseCSV(txt){
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i];
+    if(q){ if(c==='"'){ if(txt[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(cell); cell=''; }
+    else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+    else if(c!=='\r') cell+=c;
+  }
+  if(cell||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.length>1 && r.some(x=>x.trim()));
+}
+
+/* the channel address lives in the feed sheet, not in this file, so it can be
+   opened later by adding two rows rather than by rebuilding her */
+let NOTE_FORM = QS.get('form') ? decodeURIComponent(QS.get('form'))
+  : 'https://docs.google.com/forms/d/e/1FAIpQLSeZYeflJAhyO6urBQZbpDZlOitEXZM_Bwx1Sg0yTkF-zCkoqg/formResponse';
+let NOTE_FIELD= QS.get('field') || 'entry.1606824138';
+let NOTE_EMAIL= QS.get('email') || 'guhanramamurthy@gmail.com';
+let pending=[];
+
+function noteReady(){ return /^https:\/\/docs\.google\.com\/forms\//.test(NOTE_FORM) && /^entry\./.test(NOTE_FIELD); }
+
+/* Some kinds say their own thing, with their own undo. Their toast must not be
+   stamped on a moment later by this one when the fetch resolves. */
+const QUIET_KINDS=/^(done|undone)$/;
+async function sendNote(text,kind){
+  const item={t:text,k:kind||'note',at:new Date().toISOString()};
+  const quiet=QUIET_KINDS.test(item.k);
+  if(!noteReady()){ pending.push(item); toast('held — her channel isn\'t open yet'); return false; }
+  const body=new FormData();
+  body.append(NOTE_FIELD, `[${item.k}] ${item.at}\n${item.t}`);
+  if(NOTE_EMAIL) body.append('emailAddress', NOTE_EMAIL);   // the form requires it
+  try{
+    await fetch(NOTE_FORM,{method:'POST',mode:'no-cors',body});
+    if(!quiet) toast('sent to Claude');
+    return true;
+  }catch(e){ pending.push(item); toast('no signal — held for later'); return false; }
+}
+async function flushPending(){
+  if(!pending.length||!noteReady()) return;
+  const q=pending.slice(); pending=[];
+  for(const it of q){ await sendNote(it.t,it.k); }
+}
+
+
+function applyFeed(rows){
+  const now=[],week=[],ev=[],topic={},lift=[],ideas=[],health=[],learn=[],news=[];
+  let updated='',greet='';
+  rows.forEach(r=>{
+    const k=(r[0]||'').trim().toLowerCase();
+    const a=(r[1]||'').trim(), b=(r[2]||'').trim(), c=(r[3]||'').trim();
+    if(k==='meta'&&a==='updated') updated=b;
+    else if(k==='meta'&&a==='greetline') greet=b;
+    else if(k==='meta'&&a==='name'&&b) YOU=b;     // the sheet decides whose she is
+    else if(k==='meta'&&a==='noteform'&&b) NOTE_FORM=b;
+    else if(k==='meta'&&a==='notefield'&&b) NOTE_FIELD=b;
+    else if(k==='meta'&&a==='noteemail'&&b) NOTE_EMAIL=b;
+    else if(k==='meta'&&a==='place'&&b) PLACE=b;
+    else if(k==='meta'&&a==='coords'&&b) COORD=b;
+    else if(k==='meta'&&a==='weather'&&b) WX.fallback=b;
+    else if(k==='now')   now.push({t:a,d:b,lvl:c||'warn'});
+    else if(k==='week')  week.push({t:a,d:b,lvl:c||'warn'});
+    else if(k==='event'&&/^\d{4}-\d{2}-\d{2}$/.test(a)) ev.push({d:a,n:b,w:c});
+    else if(k==='topic') topic[a.toLowerCase()]=b;
+    else if(k==='lift')  lift.push([a,b]);
+    else if(k==='idea'){ const p=b.split(/\s*::\s*/); ideas.push({h:a,b:p[0]||'',s:p[1]||'',d:c}); }
+    else if(k==='health')health.push({m:a,v:b,t:c});
+    else if(k==='learn'){ const p=b.split(/\s*::\s*/);
+      learn.push({st:a.toLowerCase(),h:p[0]||'',b:p[1]||'',k:p[2]||'',src:c}); }
+    else if(k==='news'){ const p=b.split(/\s*::\s*/);
+      news.push({sc:a.toLowerCase(),h:p[0]||'',b:p[1]||'',src:c}); }
+  });
+  if(!now.length&&!week.length&&!ev.length&&!ideas.length) return false;
+  if(now.length)   KB.now=now;
+  if(week.length)  KB.week=week;
+  if(ev.length)    KB.events=ev.sort((x,y)=>x.d.localeCompare(y.d));
+  if(ideas.length) KB.ideas=ideas;
+  if(health.length)KB.health=health;
+  if(learn.length) KB.learn=learn;
+  if(news.length)  KB.news=news;
+  if(updated)      KB.updated=updated;
+  if(greet)        KB.greet=greet;
+  ['rehab','goals','cv','visa'].forEach(k=>{ if(topic[k]) KB[k]=topic[k]; });
+  if(topic.health) KB.health_note=topic.health;
+  if(lift.length){ KB.lift=lift; liftI=Math.floor(Math.random()*lift.length); }
+  /* Prune against the rows the sheet actually still carries — this is the only
+     place that sees them unfiltered — then hide whatever he has retired. */
+  try{ donePrune(now.concat(week)); applyDone(); }catch(_){ }
+  return true;
+}
+
+let feedState='local';
+async function loadFeed(){
+  const el=document.getElementById('tFeed');
+  if(el) el.textContent='syncing';
+  try{
+    let got=false;
+    for(const u of feedCandidates()){
+      try{
+        const sep=u.includes('?')?'&':'?';
+        const r=await fetch(u+sep+'_='+Date.now(),{cache:'no-store'});
+        if(!r.ok) continue;
+        const txt=await r.text();
+        /* Sniff by PARSING, never by pattern-matching the raw text. Google's
+           gviz endpoint quotes every cell, so it answers "key","a","b","c"
+           while a file on disk answers key,a,b,c. A regex that assumed the
+           bare form silently rejected the real feed and she fell back to the
+           board baked into her at build time, which looked like a stale sheet
+           rather than a bug. Parse first, then check the corner cell. */
+        const rows=parseCSV(txt);
+        if(!rows.length || String(rows[0][0]||'').trim().toLowerCase()!=='key') continue;
+        if(!applyFeed(rows)) continue;
+        feedHome=u; got=true; break;
+      }catch(_){ /* try the next home */ }
+    }
+    if(!got) throw new Error('no feed answered');
+    feedState='live'; if(el) el.textContent='live '+KB.updated.split(' ').slice(0,2).join(' ');
+    return true;
+  }catch(e){
+    feedState='local'; if(el) el.textContent='offline copy';
+    return false;
+  }
+}
+
+/* ══════════ REFRESH ══════════ */
+let lastSync=0, syncing=false;
+function agoTxt(){
+  if(!lastSync) return 'not synced';
+  const s=Math.floor((Date.now()-lastSync)/1000);
+  if(s<50) return 'just now';
+  const m=Math.round(s/60); if(m<60) return m+'m ago';
+  return Math.round(m/60)+'h ago';
+}
+function agoTick(){
+  const el=document.getElementById('hago'); if(el) el.textContent=agoTxt();
+  const b=document.getElementById('sync');
+  if(b&&!b.classList.contains('spin')) b.classList.toggle('stale',!lastSync||Date.now()-lastSync>2.7e6);
+}
+/* Is the board I am holding written today, in his local reckoning? */
+const MONTHS=['January','February','March','April','May','June','July','August',
+              'September','October','November','December'];
+function feedIsToday(){
+  if(!KB.updated) return false;
+  const d=new Date();
+  const want=(d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear()).toLowerCase();
+  return String(KB.updated).trim().toLowerCase()===want;
+}
+
+/* ── WHAT REFRESH REALLY MEANS ──
+   Pulling the sheet again only helps if the sheet has changed, and the sheet
+   only changes when Claude rewrites it. So a deliberate press does two things:
+   it re-reads the sheet immediately, and it posts a catch-up request through
+   her channel so a real sweep of mail and calendar happens. That second part
+   is not instant and she says so rather than pretending. Rate-limited, because
+   pressing it four times should not queue four sweeps. */
+let lastLite=0, lastDeep=0;
+const LITE_GAP=10*60*1000, DEEP_GAP=60*60*1000;
+
+/* Two depths, because they cost very different amounts.
+
+   LITE is the one the refresh button sends and the one you want ninety
+   times out of a hundred: mail since the board was written, today and
+   tomorrow in the calendar, rewrite what needs you now. No web search,
+   no reading, no ideas. Cheap enough to ask for freely.
+
+   DEEP is everything: the full sweep of mail, ninety days of calendar,
+   the news verified against real outlets, a fresh idea, the readings,
+   and every note you have typed at me since the last one. It costs
+   real money, so she asks for it at most once an hour and says so. */
+async function askSweep(kind){
+  const now=Date.now();
+  if(kind==='deep'){ if(now-lastDeep<DEEP_GAP) return false; }
+  else             { if(now-lastLite<LITE_GAP) return false; }
+  /* Both bodies begin with the same instruction, because the commonest way
+     this board goes wrong is not missing something new — it is still showing
+     something he finished. Retire first, then look. */
+  const RETIRE = 'FIRST, before looking for anything new: read the now and week rows currently on the sheet and check each one against his Sent mail. Anything he has already replied to comes off. If his reply created a new obligation — they came back with a date to confirm, a question, a document to send — write that as a new row instead of the old one. Anything where he is only cc and somebody else is the actioner comes off now, and goes to week marked as waiting on that person, or comes off entirely. Then, and only then, look for what is new. ';
+  const body = kind==='deep'
+    ? RETIRE + 'Guhan asked for a DEEP sweep. Everything: all mail since the board was written and anything from the past month still awaiting his reply, ninety days of calendar, the news rewritten and verified, a new idea, the readings if it is Monday, and every note he has sent me. Rewrite the whole board.'
+    : RETIRE + 'Guhan asked for a LITE sweep. Mail since the board was written and today and tomorrow in the calendar only. Rewrite the now and week rows and set meta updated. Do not touch news, ideas, readings or topics, and do not web search. Keep it quick.';
+  const ok=await sendNote(body,kind);
+  if(ok){
+    if(kind==='deep') lastDeep=now; else lastLite=now;
+    toast(kind==='deep'?'deep sweep requested':'sweep requested');
+  }
+  return ok;
+}
+
+/* the expensive one, always asked for deliberately */
+async function deepSweep(){
+  const ok=await askSweep('deep');
+  if(ok){
+    respond(`<b>Deep sweep asked for, Guhan.</b><br><br>Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one.<br><br><span style="color:var(--mut)">It runs at quarter past six tomorrow morning, which is now the only run of the day, and the whole board is rewritten then.</span>`,
+      `Deep sweep asked for, Guhan. Everything this time. All your mail, ninety days of calendar, the news checked against real outlets, a new idea, and every note you have sent me since the last one. It runs at quarter past six tomorrow morning, which is now the only run of the day, and the whole board is rewritten then.`,'bright');
+  } else {
+    respond(`<b>One is already running.</b><br><br>I asked for a deep sweep less than an hour ago and it costs enough that I will not ask twice. The quick refresh is always available.`,
+      `One is already running, Guhan. I asked for a deep sweep less than an hour ago, and it costs enough that I will not ask twice. The quick refresh is always available.`,'wry');
+  }
+  return ok;
+}
+
+async function refreshNow(loud){
+  if(syncing) return false;
+  syncing=true;
+  const btn=document.getElementById('sync');
+  if(btn){ btn.classList.remove('ok','bad'); btn.classList.add('spin'); }
+  const before=new Set([...KB.now,...KB.week].map(x=>x.t));
+  const beforeIdea=KB.ideas[0]?KB.ideas[0].h:'';
+  const ok=await loadFeed();
+  await loadWeather();
+  paintAll();
+  if(btn){ btn.classList.remove('spin'); btn.classList.add(ok?'ok':'bad');
+    setTimeout(()=>btn.classList.remove('ok','bad'),2400); }
+  if(ok) lastSync=Date.now();
+  agoTick(); syncing=false;
+  if(!loud) return ok;
+
+  if(!ok){ respond(`<b>I couldn't reach my feed just then, Guhan.</b><br><br>I'm still working from what I already had. It's usually signal — try me again in a moment.`,
+      `I couldn't reach my feed just then, Guhan. I'm still working from what I already had. It's usually signal. Try me again in a moment.`,'care');
+    return false; }
+
+  const fresh=[...KB.now,...KB.week].filter(x=>!before.has(x.t));
+  const newIdea=KB.ideas[0]&&KB.ideas[0].h!==beforeIdea;
+  const t=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+
+  /* ask for a real sweep behind the scenes, then tell him the truth about it */
+  const swept=await askSweep('lite');
+  const sweepHtml=swept
+    ? `<br><br><span style="color:var(--mut)">I've also asked for a sweep of your mail and calendar. That lands at quarter past six tomorrow morning, which is the only run there is now.</span>`
+    : '';
+  const sweepSay=swept
+    ? ` I have also asked for a sweep of your mail and calendar. That lands at quarter past six tomorrow morning, which is the only run there is now.`
+    : '';
+
+  if(fresh.length){
+    const head=fresh.slice(0,3);
+    respond(`<b>Caught up as of ${t}.</b><br><br>${fresh.length} new since I last looked.<br><br>`+
+      head.map(x=>`<b>${esc(x.t)}</b><br><span style="color:var(--mut)">${esc(x.d)}</span>`).join('<br><br>')+
+      (newIdea?`<br><br>And there's a new idea waiting in the Ideas tab.`:'')+sweepHtml,
+      `Caught up as of ${t}, Guhan. ${fresh.length} new thing${fresh.length===1?'':'s'} since I last looked. `+
+      head.map(x=>`${x.t}. ${x.d}`).join(' ')+(newIdea?` And there is a new idea waiting for you.`:'')+sweepSay,'urgent');
+  } else if(newIdea){
+    setTab('ideas');
+    respond(`<b>Nothing new on the board, but there's a new idea.</b><br><br>${esc(KB.ideas[0].h)}`+sweepHtml,
+      `Nothing new on the board, Guhan, but there is a new idea. ${KB.ideas[0].h}`+sweepSay,'bright');
+  } else if(!feedIsToday()){
+    /* the honest case: the sheet has not been rewritten since before today */
+    respond(`<b>Nothing had changed on the sheet, Guhan.</b><br><br>`+
+      `This board was written ${esc(KB.updated)}, so anything that arrived after that was never on it.`+
+      (swept
+        ? `<br><br>I've asked for a sweep. It lands at quarter past six tomorrow morning — that is the whole schedule now, one run a day. Anything you tell me before then goes with it.`
+        : `<br><br>I asked for a sweep a few minutes ago, so one is already on its way.`),
+      `Nothing had changed on the sheet, Guhan. This board was written ${KB.updated}, so anything that arrived after that was never on it. `+
+      (swept
+        ? `I have asked for a sweep. It lands at quarter past six tomorrow morning. That is the whole schedule now, one run a day, so anything you tell me before then goes with it.`
+        : `I asked for a sweep a few minutes ago, so one is already on its way.`),'care');
+  } else {
+    respond(`<b>Nothing new, Guhan.</b><br><br>I've just checked. Everything I'm holding is current as of ${esc(KB.updated)}. ${KB.now.length} still need you today.`+sweepHtml,
+      `Nothing new, Guhan. I've just checked. Everything I'm holding is current, and ${KB.now.length} thing${KB.now.length===1?'':'s'} still need${KB.now.length===1?'s':''} you today.`+sweepSay,'warm');
+  }
+  return true;
+}
+
+/* ══════════ THE WAY BACK — anything you tell her reaches Claude ══════════
+   The page holds no keys and no account. What you type is posted to a Google
+   Form that only Guhan owns; the responses land in a sheet, and one task at
+   quarter past six each morning drains that sheet into the Task Log, the
+   Profile and back into this feed. That is the whole schedule now — he cut it
+   from fourteen runs a day to one on 20 August, so this page has to carry the
+   feeling of immediacy on its own. It does: a note appears on the board the
+   instant he types it, and a row he retires disappears the instant he taps,
+   with the sheet catching up inside five minutes through the bridge. If there
+   is no signal the note is held and sent on the next open. */
+let toastT=null;
+/* One optional action, because taking something off the board by accident has
+   to be recoverable within the few seconds you notice it. */
+function toast(msg,actionLabel,fn){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent='';
+  el.appendChild(document.createTextNode(String(msg)));
+  if(actionLabel && typeof fn==='function'){
+    const a=document.createElement('span');
+    a.className='tact'; a.textContent=actionLabel;
+    a.onclick=e=>{ e.stopPropagation(); el.classList.remove('on'); fn(); };
+    el.appendChild(a);
+    el.style.pointerEvents='auto';
+  } else el.style.pointerEvents='none';
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>{ el.classList.remove('on'); el.style.pointerEvents='none'; },
+                    actionLabel?6200:2600);
+}
+/* ══════════ TABS AND PANES ══════════ */
+const days=d=>Math.ceil((new Date(d+"T00:00:00")-new Date(new Date().toDateString()))/864e5);
+const greet=()=>{const x=new Date().getHours(); return x<4?'Still up':x<12?'Good morning':x<17?'Good afternoon':x<21?'Good evening':'Evening';};
+const esc=s=>String(s==null?'':s).replace(/[<>]/g,'');
+const upcoming=()=>KB.events.filter(e=>days(e.d)>=0);
+const hots=()=>[...KB.now,...KB.week].filter(x=>x.lvl==='hot');
+
+/* build the rail and the empty panes once */
+(function build(){
+  const rail=document.getElementById('rail'), panes=document.getElementById('panes');
+  TABS.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='tab'; b.dataset.tab=t.k; b.style.setProperty('--tc',t.c);
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+(ICON[t.k]||ICON.board)+'</svg>'+
+      '<span>'+esc(t.n)+'</span><span class="dot"></span>';
+    b.onclick=()=>setTab(t.k,true);
+    rail.appendChild(b);
+    const p=document.createElement('section');
+    p.className='pane'; p.id='pane-'+t.k; panes.appendChild(p);
+  });
+})();
+
+function setTab(k,byHand){
+  const t=TABS.find(x=>x.k===k); if(!t) return;
+  TAB=k;
+  document.documentElement.style.setProperty('--ac',t.c);
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===k));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+k));
+  setPlate(k);
+  const m=document.querySelector('main'); if(m) m.scrollTop=0;
+  if(typeof restFX==='function' && !speaking) restFX();
+  if(byHand){ haptic(); if(typeof fxBurst!=='undefined') fxBurst=Math.min(1,fxBurst+.55); }
+}
+function haptic(){ try{ navigator.vibrate&&navigator.vibrate(8); }catch(_){ } }
+
+/* ── shared pieces ── */
+function evStrip(){
+  const u=upcoming();
+  if(!u.length) return '';
+  return `<div class="strip">`+u.map((e,i)=>{
+    const d=days(e.d), c=d<=10?'var(--red)':d<=25?'var(--gold)':'var(--ac)';
+    return `<div class="ev" style="--evc:${c}" data-ev="${i}">
+      <div><b>${d}</b><i>${d===1?'day':'days'}</i></div>
+      <div class="n">${esc(e.n)}</div><div class="w">${esc(e.w)}</div></div>`;
+  }).join('')+`</div>`;
+}
+/* 'hot' is a view, not a store — it is hots(), not KB.hot. The click handler
+   used to look up KB['hot'], get undefined, and quietly do nothing. */
+function listFor(k){ return k==='hot' ? hots() : (KB[k]||[]); }
+
+function cards(arr,key){
+  return arr.map((it,i)=>`<article class="card${it.lvl==='note'?' note':''}" style="--cc:${it.lvl==='hot'?'var(--red)':it.lvl==='note'?'var(--ac)':'var(--gold)'}" data-k="${key}" data-i="${i}">
+    <div class="k">${it.lvl==='hot'?'PRIORITY':it.lvl==='note'?'<b>YOURS</b> \u00b7 NOT FILED YET':'STANDING'}<i>${String(i+1).padStart(2,'0')}</i></div>
+    <div class="t">${esc(it.t)}</div>
+    <div class="d">${esc(it.d)}</div>${it.lvl==='note'?'':
+    `<div class="act"><span class="dn" data-done="${key}:${i}">mark done</span></div>`}</article>`).join('');
+}
+function head(label,count,readKey){
+  return `<div class="eyebrow">${label}<span class="ln"></span>`+
+    (count!=null?`<span class="c">${count}</span>`:'')+
+    (readKey?`<span class="rd" data-read="${readKey}">read</span>`:'')+`</div>`;
+}
+const TOPICS=`<div class="tp">
+  <span class="tpc" data-t="rehab">Rehab centre</span>
+  <span class="tpc" data-t="visa">Korea visa</span>
+  <span class="tpc" data-t="cv">My CV</span>
+  <span class="tpc" data-t="goals">What I'm building</span>
+  <span class="tpc" data-t="health_note">Health</span></div>`;
+
+/* ── HOME: the cinematic centre ── */
+function tile(k,label,value,sub,wide,alert){
+  const t=TABS.find(x=>x.k===k)||TABS[0];
+  return `<div class="tile${wide?' wide':''}" style="--tc:${t.c}" data-go="${k}">
+    ${alert?'<span class="dot"></span>':''}
+    <div><div class="n">${esc(label)}</div>${wide?'':`<div class="v">${value}</div>`}</div>
+    ${wide?`<div class="v">${value}</div>`:''}
+    <div class="s">${esc(sub)}</div></div>`;
+}
+function renderHome(){
+  const n=KB.now.length, h=hots().length, next=upcoming()[0];
+  const idea=(KB.ideas||[])[0], L=KB.learn||[];
+  const w=(KB.health||[]).find(x=>/weight/i.test(x.m));
+  const G=greet(), late=new Date().getHours()>=22||new Date().getHours()<4;
+  const line = late
+    ? `It's late. <b>Nothing here</b> needs you tonight.`
+    : (h ? `<b>${h}</b> thing${h===1?'':'s'} ${h===1?'is':'are'} burning.`
+         : `<b>${n}</b> thing${n===1?'':'s'} need${n===1?'s':''} you today.`);
+  const wx=wxLine();
+  return `<div class="hero">
+      <div class="d"><span class="nw">${esc(PLACE)}</span> · <span class="nw">${esc(new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'}))}</span> · <span class="nw">${esc(new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}))}</span></div>
+      <div class="l">${G}, Guhan.<br>${line}</div>
+      ${wx?`<div class="wx" data-q="weather">${esc(wx)}</div>`:''}
+    </div>
+    <div class="grid">
+      ${tile('urgent','Urgent', h||'—', h?'needs you before anything else':'nothing on fire', false, h>0)}
+      ${tile('today','Today', n, 'the board, and this week')}
+      ${tile('ideas','Ideas', idea?'1':'—', idea?esc(idea.h):'arrives each morning')}
+      ${tile('learn','Learn', L.length||'—', L.length?'four readings this week':'arrives Monday')}
+      ${tile('health','Health', w?esc(w.v):'—', w?esc(w.t):'weight, sleep, the walk')}
+      ${tile('horizon','Horizon', next?days(next.d)+'d':'—', next?esc(next.n):'nothing ahead')}
+      ${tile('news','News', (KB.news||[]).length||'—', (KB.news||[]).length?'four scopes, read three times a day':'arrives with the brief')}
+      ${tile('board','Everything','\u2192','the whole board on one scroll',true)}
+    </div>
+    <div class="tp" style="margin-top:16px">
+      <span class="qc" data-q="brief">Brief me</span>
+      <span class="qc" data-q="motivate">Lift me</span>
+      <span class="qc" data-q="breathe">Breathe</span>
+    </div>`;
+}
+
+/* ── the panes ── */
+function renderToday(){
+  const n=KB.now.length, next=upcoming()[0];
+  return evStrip()+
+    cols([head('Needs you today',n,'now')+cards(KB.now,'now'),
+          head('This week',KB.week.length,'week')+cards(KB.week,'week')])+
+    head('Ask about')+TOPICS;
+}
+function renderUrgent(){
+  const h=hots();
+  if(!h.length) return head('Nothing burning')+
+    `<div class="empty">Nothing is on fire, Guhan.<br>That is worth noticing before you go looking for something that is.</div>`;
+  const next=upcoming()[0];
+  return head('Burning now',h.length,'hot')+grid2(cards(h,'hot'))+
+    (next?`<div class="stat"><span class="v">${days(next.d)}</span><span class="u">days<br>to ${esc(next.n.split(/[,—]/)[0])}</span>
+      <span class="r">${esc(next.w)}</span></div>`:'');
+}
+function renderHealth(){
+  const h=KB.health||[];
+  const w=h.find(x=>/weight/i.test(x.m));
+  let meter='';
+  const nums=(w?String(w.v)+' '+String(w.t):'').match(/\d+(\.\d+)?/g);
+  if(w&&nums&&nums.length>=2){
+    const done=parseFloat(nums[0]), goal=parseFloat(nums[nums.length-1])||18;
+    const pc=Math.max(2,Math.min(100,Math.round(done/goal*100)));
+    meter=`<div class="meter"><div class="lab"><span>Weight programme</span><b>${pc}%</b></div>
+      <div class="track"><div class="fill" style="width:${pc}%"></div></div>
+      <div class="ticks"><span>start</span><span>${esc(String(goal))} kg down</span></div></div>`;
+  }
+  return cols([head('Your numbers',h.length||null,null)+
+    h.map(x=>`<div class="stat"><span class="v">${esc(x.v)}</span><span class="u">${esc(x.m)}</span>
+      <span class="r">${esc(x.t)}</span></div>`).join('')+
+    meter,
+    head('Where this stands')+
+    `<article class="card on" style="--cc:var(--teal)" data-k="static" data-i="0">
+      <div class="k">THE LONG GAME</div>
+      <div class="t">Eighteen kilograms, and the sleep window</div>
+      <div class="d">${esc(KB.health_note)}</div></article>`+
+    head('Right now')+
+    `<div class="tp"><span class="qc" data-q="breathe">Breathe</span>
+      <span class="qc" data-q="reset">Reset · 60s</span>
+      <span class="qc" data-q="wind down">Wind down</span></div>`]);
+}
+function renderHorizon(){
+  const u=upcoming();
+  if(!u.length) return head('Horizon')+`<div class="empty">Nothing scheduled ahead.</div>`;
+  return head('Ahead of you',u.length,'events')+grid2(
+    u.map((e,i)=>{
+      const d=days(e.d), c=d<=10?'var(--red)':d<=25?'var(--gold)':'var(--violet)';
+      const dt=new Date(e.d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+      return `<article class="card" style="--cc:${c}" data-ev="${i}">
+        <div class="k" style="color:${c}">${dt}<i>${d} ${d===1?'day':'days'}</i></div>
+        <div class="t">${esc(e.n)}</div>
+        <div class="d">${esc(e.w)}</div></article>`;
+    }).join(''));
+}
+function renderIdeas(){
+  const I=KB.ideas||[];
+  if(!I.length) return head('Ideas')+`<div class="empty">No idea has arrived yet today.<br>She writes one each morning.</div>`;
+  const a=I[0];
+  const when=a.d?new Date(a.d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'long'}):'Today';
+  return cols([`<div class="idea" data-idea="0">
+      <div class="dt">${esc(when)} · one idea</div>
+      <div class="h">${esc(a.h)}</div>
+      <div class="b">${esc(a.b)}</div>
+      ${a.s?`<div class="step"><em>Start here</em>${esc(a.s)}</div>`:''}
+    </div>
+    <div class="tp" style="margin-bottom:20px">
+      <span class="qc" data-q="i'm doing this">I'm doing this</span>
+      <span class="qc" data-q="not for me">Not for me</span>
+      <span class="qc" data-q="read the idea">Read it to me</span></div>`,
+    (I.length>1?head('Earlier ideas',I.length-1)+I.slice(1).map((x,i)=>
+      `<article class="card" style="--cc:var(--gold)" data-k="ideas" data-i="${i+1}">
+        <div class="k">${esc(x.d||'')}</div>
+        <div class="t">${esc(x.h)}</div>
+        <div class="d">${esc(x.b)}${x.s?'<br><br><b>Start here.</b> '+esc(x.s):''}</div></article>`).join(''):'')]);
+}
+const SCOPES=[
+  ['regional','Regional','Thoothukudi, the coast, the road to your door'],
+  ['state','Tamil Nadu','policy, council, schemes, how you practise'],
+  ['national','India','NMC, fellowships, national programmes'],
+  ['world','International','the field, and where it is going']
+];
+function renderNews(){
+  const N=KB.news||[];
+  if(!N.length) return head('News')+`<div class="empty">Nothing has arrived yet.<br>She reads three times a day.</div>`;
+  return split2(SCOPES.map(([k,label,why])=>{
+    const items=N.filter(x=>x.sc===k);
+    if(!items.length) return '';
+    return head(label,items.length,null)+
+      `<div class="why">${esc(why)}</div>`+
+      items.map(x=>`<article class="card" style="--cc:var(--ac)" data-k="news" data-i="${N.indexOf(x)}">
+        <div class="k">${esc(x.src||'today')}<i>tap to open</i></div>
+        <div class="t">${esc(x.h)}</div>
+        <div class="d">${esc(x.b)}</div></article>`).join('');
+  }))+
+  `<div class="tp" style="margin-top:6px">
+     <span class="qc" data-q="read the news">Read it to me</span>
+     <span class="qc" data-q="weather">Weather</span></div>`;
+}
+
+const CANON=[
+  ['Continuum','AAN, issue-based, written for practice'],
+  ['Nature Reviews Neurology','where a field gets summarised properly'],
+  ['Nature Reviews Neuroscience','the mechanism underneath'],
+  ['Neurologic Clinics','North American topic issues'],
+  ['Handbook of Clinical Neurology','the reference volumes'],
+  ['Neurology','the journal of record'],
+  ['Lancet Neurology','trials and position pieces'],
+  ['Brain · JNNP','the older authority'],
+  ['JAMA · JAMA Neurology','general and neurological'],
+  ['NEJM · Lancet','when medicine changes'],
+  ['Neurorehabilitation and Neural Repair','recovery, dose, plasticity'],
+  ['Brain Stimulation','rTMS, tDCS, protocols and responders']
+];
+const STREAMS=[
+  ['neurology','Neurology','the wider field'],
+  ['neurorehab','Neurorehabilitation','your own ground'],
+  ['neuromodulation','Neuromodulation','the edge you are on'],
+  ['medicine','Medicine','what your inpatients actually die of']
+];
+function renderLearn(){
+  const L=KB.learn||[];
+  if(!L.length) return head('Learn')+`<div class="empty">Nothing has arrived yet.<br>Four readings land on Monday morning.</div>`;
+  return split2(STREAMS.map(([k,label,why])=>{
+    const items=L.filter(x=>x.st===k);
+    if(!items.length) return '';
+    return head(label,null,null)+
+      `<div class="why">${esc(why)}</div>`+
+      items.map(x=>`<article class="card" style="--cc:var(--ac)" data-k="learn" data-i="${L.indexOf(x)}">
+        <div class="k">${esc(x.src||'reading')}<i>tap to open</i></div>
+        <div class="t">${esc(x.h)}</div>
+        <div class="d">${esc(x.b)}${x.k?`<div class="take"><em>Take this into clinic</em>${esc(x.k)}</div>`:''}</div>
+      </article>`).join('');
+  }))+
+  `<div class="tp" style="margin-top:6px">
+     <span class="qc" data-q="read the learning">Read all four to me</span>
+     <span class="qc" data-q="note I read this week's papers">Mark as read</span></div>`+
+  head('Where these come from')+
+  `<div class="canon">`+CANON.map(([n,w])=>
+     `<div class="cn"><span class="j">${esc(n)}</span><span class="q">${esc(w)}</span></div>`).join('')+`</div>
+   <div class="why" style="margin-top:12px">Tell me to weight a stream differently and I will pass it on. Start with <b>note</b>.</div>`;
+}
+function renderBoard(){
+  return evStrip()+
+    cols([head('Needs you today',KB.now.length,'now')+cards(KB.now,'now'),
+    head('This week',KB.week.length,'week')+cards(KB.week,'week')+
+    (KB.ideas&&KB.ideas.length?head("Today's idea")+
+      `<article class="card" style="--cc:var(--gold)" data-k="ideas" data-i="0">
+        <div class="k">IDEA</div><div class="t">${esc(KB.ideas[0].h)}</div>
+        <div class="d">${esc(KB.ideas[0].b)}</div></article>`:'')])+
+    head('Ask about')+TOPICS;
+}
+
+const RENDER={home:renderHome,news:renderNews,today:renderToday,urgent:renderUrgent,health:renderHealth,
+  horizon:renderHorizon,ideas:renderIdeas,learn:renderLearn,board:renderBoard};
+
+function telemetry(){
+  const next=upcoming()[0], h=hots().length;
+  const bits=[`<b>${KB.now.length}</b> now`,`<b>${KB.week.length}</b> week`];
+  if(h) bits.unshift(`<b>${h}</b> hot`);
+  if(next) bits.push(`<b>${days(next.d)}d</b> ${esc(next.n.split(/[,—]/)[0]).slice(0,16)}`);
+  bits.push(`sync <b>${feedState==='live'?'live':'local'}</b>`);
+  bits.push(`<span class="el">${typeof domEl==='function'?domEl():''}</span>`);
+  document.getElementById('tel').innerHTML=bits.map(b=>`<span>${b}</span>`).join('');
+}
+
+function paintAll(){
+  /* anything he has retired comes off, then anything he typed goes back on */
+  if(typeof applyDone==='function') applyDone();
+  if(typeof pendMerge==='function') pendMerge();
+  TABS.forEach(t=>{ const el=document.getElementById('pane-'+t.k); if(el) el.innerHTML=RENDER[t.k](); });
+  telemetry();
+  const alert=hots().length>0;
+  const ut=document.querySelector('.tab[data-tab="urgent"]'); if(ut) ut.classList.toggle('alert',alert);
+  document.getElementById('hline').textContent=`${greet()}, Guhan`;
+  agoTick();
+}
+/* ══════════ CONVERSATION ══════════
+   She used to answer out loud and show one truncated line. If the sound was off,
+   or he was in clinic, the answer was gone. Everything she says is now kept in a
+   thread he can open, scroll and replay. */
+const THREAD=[];
+let talkOpen=false;
+
+function talkRender(){
+  const el=document.getElementById('tthread'); if(!el) return;
+  if(!THREAD.length){
+    el.innerHTML=`<div id="tempty">Ask her anything on the board, or just tell her something.<br><br>
+      <b>what should I do first</b><br><b>note the vendor is coming Tuesday</b><br><b>done the Pathshala flyer</b><br><b>read me today's idea</b><br><br>
+      Open any card and tap <b>mark done</b> to take it off the board.</div>`;
+    return;
+  }
+  el.innerHTML=THREAD.map((m,i)=> m.mine
+    ? `<div class="msg me"><div class="b">${esc(m.text)}</div></div>`
+    : `<div class="msg her"><div class="k">Astra<span class="rp" data-rp="${i}">replay</span></div>
+         <div class="b">${m.html}</div></div>`).join('');
+  /* twice: once now, once after the new message has finished floating in,
+     or the last line she says sits half below the fold */
+  const box=document.getElementById('tbox'); if(!box) return;
+  box.scrollTop=box.scrollHeight;
+  requestAnimationFrame(()=>{ box.scrollTop=box.scrollHeight; });
+  setTimeout(()=>{ box.scrollTop=box.scrollHeight; },560);
+}
+function openTalk(){ talkOpen=true; document.getElementById('talk').classList.add('on'); talkRender(); }
+function closeTalk(){ talkOpen=false; document.getElementById('talk').classList.remove('on'); }
+function talkCount(){ const el=document.getElementById('tTalk');
+  if(el) el.textContent = THREAD.length? 'talk '+THREAD.filter(m=>!m.mine).length : 'talk'; }
+
+/* quiet: keep it in the thread so it can be replayed, but do not slide the
+   sheet up. Tapping a card is not asking a question — and the sheet would
+   cover the very card you just opened, along with its mark-done control. */
+function bubble(html,mine,quiet){
+  html = mine ? String(html) : you(html);       // her half is addressed to whoever owns her
+  const hl=document.getElementById('hline');
+  if(!mine && hl) hl.textContent=String(html).replace(/<[^>]*>/g,'').split(/[.!?]/)[0].slice(0,72);
+  THREAD.push(mine?{mine:true,text:String(html)}:{mine:false,html:String(html),spoken:''});
+  if(THREAD.length>60) THREAD.splice(0,THREAD.length-60);
+  talkCount();
+  /* His line goes up the moment he sends it. It used to sit invisibly in the
+     thread until she answered, so pressing send looked like nothing happening. */
+  if(quiet){ talkCount(); if(talkOpen) talkRender(); return; }
+  openTalk();
+}
+function respond(html,spoken,feel){
+  bubble(html);
+  const last=THREAD[THREAD.length-1]; if(last) last.spoken=spoken||html;
+  if(last) last.feel=feel;
+  speak(spoken||html,feel);
+}
+
+function brief(){
+  setTab('today'); setMode('work');
+  const n=KB.now.length,w=KB.week.length,G=greet(), next=upcoming()[0];
+  let h=`<b>${G}, Guhan.</b> ${esc(KB.greet)}.<br><br>`;
+  h+=`There are ${n} things needing you today, and ${w} more across the week. `;
+  if(next) h+=`Your next commitment is ${esc(next.n)}, ${days(next.d)} days away.<br><br>`;
+  if(KB.now[0]) h+=`If you do only one thing, make it this one. <b>${esc(KB.now[0].t)}</b>. ${esc(KB.now[0].d)}<br><br>`;
+  if(KB.week[0]) h+=`And the one that's still bothering me. <b>${esc(KB.week[0].t)}</b>. ${esc(KB.week[0].d)}`;
+  let s=`${G}, Guhan. ${KB.greet}. There are ${n} things needing you today, and ${w} more across the week. `;
+  if(next) s+=`Your next commitment is ${next.n}, ${days(next.d)} days away. `;
+  if(KB.now[0]) s+=`If you do only one thing, make it this one. ${KB.now[0].t}. ${KB.now[0].d} `;
+  if(KB.week[0]) s+=`And the one that's still bothering me. ${KB.week[0].t}. ${KB.week[0].d}`;
+  respond(h,s,'warm');
+}
+function listBlock(arr,title,tab){
+  if(tab) setTab(tab);
+  setMode('work');
+  if(!arr.length){ respond(`<b>${title}, Guhan.</b><br><br>There's nothing in it.`,`${title}, Guhan. There's nothing in it.`,'warm'); return; }
+  let h=`<b>${title}, Guhan.</b><br><br>`, s=`${title}, Guhan. `;
+  const ORD=['First','Then','After that','Then','And then','Also','And finally'];
+  arr.forEach((i,x)=>{
+    h+=`<b>${x+1}. ${esc(i.t)}</b><br><span style="color:var(--mut)">${esc(i.d)}</span><br><br>`;
+    const lead = arr.length===1 ? '' : (x===arr.length-1 ? 'And last, ' : ORD[Math.min(x,ORD.length-1)]+', ');
+    s+=`${lead}${i.t}. ${i.d} `;
+  });
+  respond(h,s,'urgent');
+}
+function countdown(){
+  setTab('horizon'); setMode('work');
+  const u=upcoming();
+  if(!u.length){ respond(`<b>Nothing scheduled ahead, Guhan.</b>`,`Nothing scheduled ahead, Guhan.`,'warm'); return; }
+  let h=`<b>Looking ahead, Guhan.</b><br><br>`, s=`Looking ahead, Guhan. `;
+  u.forEach(e=>{const d=days(e.d);
+    h+=`<b>${d} days</b> — ${esc(e.n)} <span style="color:var(--faint)">· ${esc(e.w)}</span><br>`;
+    s+=`${e.n}, in ${d} days. `;});
+  respond(h,s,'warm');
+}
+function readIdea(){
+  setTab('ideas');
+  const a=(KB.ideas||[])[0];
+  if(!a){ respond(`<b>No idea has arrived yet today, Guhan.</b><br><br>I write one each morning.`,
+    `No idea has arrived yet today, Guhan. I write one each morning.`,'warm'); return; }
+  setMode('boost');
+  respond(`<b>${esc(a.h)}</b><br><br>${esc(a.b)}${a.s?`<br><br><b>Start here.</b> ${esc(a.s)}`:''}`,
+    `${a.h}. ${a.b} ${a.s?'Start here. '+a.s:''}`,'bright');
+}
+function readLearn(){
+  setTab('learn');
+  const L=KB.learn||[];
+  if(!L.length){ respond(`<b>Nothing has arrived yet, Guhan.</b><br><br>Four readings land on Monday morning. One from neurology, one from neurorehabilitation, one from neuromodulation, one from medicine.`,
+    `Nothing has arrived yet, Guhan. Four readings land on Monday morning. One from neurology, one from neurorehabilitation, one from neuromodulation, and one from medicine.`,'warm'); return; }
+  setMode('work');
+  let h=`<b>This week's four, Guhan.</b><br><br>`, s=`This week's four, Guhan. `;
+  STREAMS.forEach(([k,label])=>{
+    const x=L.find(y=>y.st===k); if(!x) return;
+    h+=`<b>${esc(label)}.</b> ${esc(x.h)}<br><span style="color:var(--mut)">${esc(x.b)}</span>`+
+       (x.k?`<br><span style="color:var(--ac)">${esc(x.k)}</span>`:'')+`<br><br>`;
+    s+=`${label}. ${x.h}. ${x.b} ${x.k?x.k+' ':''}`;
+  });
+  respond(h,s,'warm');
+}
+function readNews(){
+  setTab('news'); setMode('work');
+  const N=KB.news||[];
+  if(!N.length){ respond(`<b>Nothing has arrived yet, Guhan.</b><br><br>I read three times a day, and I keep only what touches Tiruchendur, Tamil Nadu, or your field.`,
+    `Nothing has arrived yet, Guhan. I read three times a day, and I keep only what touches Tiruchendur, Tamil Nadu, or your field.`,'warm'); return; }
+  let h=`<b>What's happening, Guhan.</b><br><br>`, s=`Here's what's happening, Guhan. `;
+  SCOPES.forEach(([k,label])=>{
+    const items=N.filter(x=>x.sc===k); if(!items.length) return;
+    h+=`<b>${esc(label)}.</b><br>`;
+    items.forEach(x=>{ h+=`${esc(x.h)}<br><span style="color:var(--mut)">${esc(x.b)}</span><br>`;
+      s+=`${label}. ${x.h}. ${x.b} `; });
+    h+=`<br>`;
+  });
+  respond(h,s,'warm');
+}
+let liftI=0;
+function motivate(){
+  setMode('boost');
+  const L=KB.lift||[["Keep going","You have done harder things than today."]];
+  const [t,b]=L[liftI%L.length]; liftI++;
+  respond(`<b>${esc(t)}</b><br><br>${esc(b)}<br><br><span style="color:var(--faint)">Ask again for another.</span>`,`${t}. ${b}`,'bright');
+}
+function unwind(){
+  setMode('calm'); setTab('health');
+  respond(`<b>Let's take the pressure off, Guhan.</b><br><br>Pick one.<br><br><b>Breathe</b> — box breathing, five rounds, about ninety seconds.<br><b>Reset</b> — sixty seconds, longer out than in. Good between patients.<br><b>Sleep</b> — the four-seven-eight pattern, for one in the morning.`,
+    `Let's take the pressure off, Guhan. Pick one. Breathe, for box breathing, five rounds, about ninety seconds. Reset, sixty seconds, longer out than in, good between patients. Or sleep, the four seven eight pattern, for one in the morning.`,'care');
+}
+function windDown(){
+  setMode('calm'); setTab('health');
+  respond(`<b>It's late, Guhan.</b><br><br>Nothing in that inbox changes between now and eight in the morning. Put the screen down. I'll have all of it laid out for you when you wake, and I'll not have forgotten a single item.<br><br>Say <b>sleep</b> if you'd like me to breathe you down first.`,
+    `It's late, Guhan. Nothing in that inbox changes between now and eight in the morning. Put the screen down. I'll have all of it laid out for you when you wake, and I'll not have forgotten a single item. Say sleep if you'd like me to breathe you down first.`,'care');
+}
+function topicSay(k,label){
+  setMode('work');
+  const body=KB[k]||'Nothing recorded yet.';
+  respond(`<b>${esc(label)}.</b><br><br>${esc(body)}`,`${label}, Guhan. ${body}`,'warm');
+}
+
+/* ── the note channel: she can be told things, not only asked ── */
+const NOTE_RE=/^(note|remember|tell claude|log|add|remind me|update|i did|book|call|buy|ask|new task)\b/i;
+
+/* ── WHY A NOTE APPEARS BEFORE CLAUDE HAS SEEN IT ──
+   Everything typed here goes to Claude, and Claude rewrites the board — but
+   that is a drain away, which through the day is up to about three hours.
+   Waiting three hours to see your own words is indistinguishable from the
+   thing being broken. So the note is put on the board here, at once, marked
+   as yours and not yet filed, and kept inside this phone until a real feed
+   row carries the same thing. Then it retires quietly and Claude's proper
+   version, with the context he has and this page has not, takes its place. */
+const PEND_KEY='astra.pending.v1';
+const PEND_LIFE=14*60*60*1000;        /* a night's worth. After that it goes, said or not. */
+let PEND=[];
+try{ PEND=JSON.parse(localStorage.getItem(PEND_KEY)||'[]')||[]; }catch(_){ PEND=[]; }
+function pendSave(){ try{ localStorage.setItem(PEND_KEY,JSON.stringify(PEND)); }catch(_){ } }
+function pendKey(s){ return ' '+String(s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' '; }
+
+/* A pending row retires when the board carries the same thing in Claude's
+   words — matched loosely, on the words that carry meaning — or when it is
+   simply too old to still be waiting. */
+function pendPrune(){
+  if(!PEND.length) return;
+  const now=Date.now();
+  const board=[...(KB.now||[]),...(KB.week||[])]
+    .filter(x=>x.lvl!=='note').map(x=>pendKey(x.t+' '+x.d));
+  const n=PEND.length;
+  PEND=PEND.filter(p=>{
+    if(now-(p.at||0)>PEND_LIFE) return false;
+    const w=pendKey(p.t).split(' ').filter(x=>x.length>3);
+    if(w.length<2) return true;
+    return !board.some(b=>w.filter(x=>b.includes(' '+x)||b.includes(x+' ')).length/w.length>=0.6);
+  });
+  if(PEND.length!==n) pendSave();
+}
+/* they ride on the board itself, so every pane and every count sees them */
+function pendMerge(){
+  try{
+    pendPrune();
+    KB.now=(KB.now||[]).filter(x=>x.lvl!=='note');
+    for(let i=PEND.length-1;i>=0;i--) KB.now.unshift({t:PEND[i].t,d:PEND[i].d,lvl:'note'});
+  }catch(_){ }
+}
+
+/* ── DONE ──
+   He can now take a row off the board himself. That has to be true in three
+   places at three different speeds, and the page is honest about all three.
+
+     immediately   this device, because the row is filtered out of KB and
+                   remembered in localStorage, so a reload does not bring it back
+     ~5 minutes    every other device, because the Apps Script bridge reads the
+                   done marks out of the responses sheet on its own tick and
+                   deletes those rows from the feed sheet
+     next drain    permanently, because Claude sees the same mark and stops
+                   writing that row at all
+
+   The middle one is what makes "reflected everywhere" true rather than a
+   local trick. If the bridge is ever off, the page still hides the row here
+   and the drain still catches up — it degrades to slow, not to wrong. */
+const DONE_KEY='astra.done.v1';
+let DONE=[];
+try{ DONE=JSON.parse(localStorage.getItem(DONE_KEY)||'[]')||[]; }catch(_){ DONE=[]; }
+function doneSave(){ try{ localStorage.setItem(DONE_KEY,JSON.stringify(DONE)); }catch(_){ } }
+function doneKey(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function isDone(it){ const k=doneKey(it&&it.t); return !!k && DONE.some(d=>d.k===k); }
+
+/* Called ONLY from applyFeed, against the rows exactly as the sheet gave them.
+   Once the sheet has stopped carrying a row there is nothing left to hide, so
+   the mark is dropped and localStorage does not grow forever. Never call this
+   with an already-filtered list or it would forget every mark at once and the
+   rows would all come back. */
+function donePrune(rawRows){
+  if(!DONE.length) return;
+  const live=new Set(rawRows.map(x=>doneKey(x.t)));
+  const n=DONE.length;
+  DONE=DONE.filter(d=>live.has(d.k));
+  if(DONE.length!==n) doneSave();
+}
+/* Safe to call as often as you like. */
+function applyDone(){
+  if(!DONE.length) return;
+  KB.now =(KB.now ||[]).filter(x=>x.lvl==='note'||!isDone(x));
+  KB.week=(KB.week||[]).filter(x=>!isDone(x));
+}
+
+function markDone(it){
+  if(!it||!it.t) return;
+  const title=String(it.t);
+  DONE.unshift({k:doneKey(title),t:title,at:Date.now()});
+  doneSave(); applyDone();
+  if(typeof paintAll==='function') paintAll();
+  sendNote(`DONE :: ${title} :: He marked this done on the board himself. Take it off the sheet and do not write it again unless something genuinely new reopens it.`,'done');
+  toast('done \u00b7 off everywhere in 5 min','undo',()=>undoDone(title));
+}
+function undoDone(title){
+  const k=doneKey(title);
+  DONE=DONE.filter(d=>d.k!==k); doneSave();
+  sendNote(`UNDO DONE :: ${title} :: He put this back on the board. Ignore the done mark for it and keep the row.`,'undone');
+  loadFeed().then(()=>{ paintAll(); toast('back on the board'); });
+}
+
+function takeNote(text,kind){
+  const t=String(text||'').trim(); if(!t) return;
+  sendNote(t,kind||'note');
+  PEND.unshift({
+    t: t.length>78 ? t.slice(0,76)+'\u2026' : t,
+    d: 'You told me this yourself, just now. It is on its way to Claude, and the next time he writes the board it comes back here properly, with everything he knows about it attached.',
+    at: Date.now(), k: kind||'note'
+  });
+  if(PEND.length>12) PEND.length=12;
+  pendSave(); pendMerge();
+  if(typeof paintAll==='function') paintAll();
+  setMode('work'); setTab('today');
+  const short=t.length>90?t.slice(0,88)+'\u2026':t;
+  respond(`<b>Noted \u2014 and it is already on your board.</b><br><br>\u201c${esc(short)}\u201d<br><br>Top of <b>Today</b>, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. Claude reads these once each morning, at quarter past six, and it comes back written properly then.`,
+    `Noted, Guhan. It is already on your board, at the top of today, in a dashed frame, which is how I mark something you told me that Claude has not filed yet. He reads these once each morning, at quarter past six, and it comes back written properly then.`,'warm');
+}
+
+const DONE_RE=/^(done|finished|completed|sorted|handled|cleared)\b/i;
+
+/* Saying it should work as well as tapping it. "done the flyer" finds the row
+   that best matches and retires it; if nothing on the board matches, it falls
+   through to an ordinary note rather than silently doing nothing. */
+function doneBySpeech(q){
+  const said=q.replace(DONE_RE,'').trim();
+  const rows=[...(KB.now||[]).filter(x=>x.lvl!=='note'),...(KB.week||[])];
+  if(!said){
+    setMode('work');
+    respond(`<b>Done with which one, Guhan?</b><br><br>`+
+      rows.slice(0,5).map(r=>`<b>${esc(r.t)}</b>`).join('<br>')+
+      `<br><br>Say <b>done</b> and a few words from it, or open its card and tap <b>mark done</b>.`,
+      `Done with which one, Guhan? Say done and a few words from it, or open its card and tap mark done.`,'warm');
+    return;
+  }
+  const words=doneKey(said).split(' ').filter(w=>w.length>3);
+  /* The title is what he is naming. The description is only a tie-breaker, and
+     it must never win on its own — "done the flyer" once matched a row whose
+     title was about a clash, purely because the flyer was mentioned in its
+     body. So a match has to land in the title to count at all. */
+  let best=null,score=0,titleHit=0;
+  if(words.length) rows.forEach(r=>{
+    const inT=words.filter(w=>doneKey(r.t).includes(w)).length/words.length;
+    const inD=words.filter(w=>doneKey(r.d).includes(w)).length/words.length;
+    const sc=inT+inD*0.15;
+    if(sc>score){ score=sc; titleHit=inT; best=r; }
+  });
+  if(best && titleHit>=0.5){
+    markDone(best);
+    setMode('work'); setTab('today');
+    respond(`<b>Done, and off the board.</b><br><br>${esc(best.t)}<br><br><span style="color:var(--mut)">Gone from every list here, off the sheet within five minutes, and Claude has been told not to write it again.</span>`,
+      `Done, Guhan. ${best.t} is off the board. It is gone from every list here, it comes off the sheet within five minutes, and Claude has been told not to write it again.`,'bright');
+    return;
+  }
+  takeNote(said||q,'note');
+}
+
+const ROUTES=[
+ [DONE_RE, q=>doneBySpeech(q)],
+ [/^(note|remember|tell claude|log this|log|remind me)\b/i, q=>takeNote(q.replace(NOTE_RE,'').trim()||q,'note')],
+ [/(deep sweep|full sweep|sweep everything|sweep it all|proper sweep|do a deep|everything you have)/i, ()=>deepSweep()],
+ [/(sweep|quick sweep|catch me up|catch up|refresh|update yourself|sync|are you current|up to date|anything new|what'?s new)/i, ()=>refreshNow(true)],
+ [/(i'?m doing this|i am doing this|do this one|take this idea)/i, ()=>{ const a=(KB.ideas||[])[0];
+   takeNote(`He is taking on today's idea: ${a?a.h:'(none)'} `,'idea-accepted'); }],
+ [/(not for me|skip this idea|different idea)/i, ()=>{ const a=(KB.ideas||[])[0];
+   takeNote(`He passed on today's idea: ${a?a.h:'(none)'}. Send a different kind tomorrow.`,'idea-rejected'); }],
+ [/(read the idea|today'?s idea|idea|new idea|transform my career)/i, readIdea],
+ [/(where do (the|these) (readings?|papers?) come from|which journals|what journals|sources)/i, ()=>{
+   setTab('learn'); setMode('work');
+   const list=CANON.map(([n])=>n).join(', ');
+   respond(`<b>Where the readings come from.</b><br><br>${esc(list)}.<br><br>Continuum and the Handbook volumes when the point is to learn a field properly. Nature Reviews when it is a mechanism. Neurology, Lancet Neurology, JAMA and the New England Journal when something has actually changed. Neurorehabilitation and Neural Repair and Brain Stimulation carry their own streams.`,
+     `The readings come from Continuum, Nature Reviews Neurology and Neuroscience, Neurologic Clinics, the Handbook of Clinical Neurology, Neurology, Lancet Neurology, Brain, JAMA, and the New England Journal, among others. Continuum and the Handbook volumes when the point is to learn a field properly. Nature Reviews when it is a mechanism. The trial journals when something has actually changed.`,'warm'); }],
+ [/(read the learning|read all four|learn|reading|paper|journal|study|what should i read|upskill)/i, readLearn],
+ [/(weather|how hot|raining|rain today|temperature|forecast)/i, ()=>{
+   setMode('work');
+   const t=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+   respond(`<b>${esc(PLACE)}, ${esc(t)}.</b><br><br>${esc(wxSpoken())}`, wxSpoken(), 'warm'); }],
+ [/(news|headlines|what'?s happening|what is happening|papers today|world|going on outside)/i, readNews],
+ [/(stop|cancel|enough|quiet)/i, ()=>{ if(breath){stopBreath(); respond(`Stopped, Guhan.`);} else respond(`Right here when you need me.`); }],
+ [/(breathe|breathing|box)/i, ()=>startBreath('box')],
+ [/(reset|between patients|sixty|60s)/i, ()=>startBreath('reset')],
+ [/(sleep|4.?7.?8|four seven eight|insomnia|can'?t sleep)/i, ()=>startBreath('s478')],
+ [/(unwind|relax|calm|stressed|tired|exhausted|switch off)/i, unwind],
+ [/(wind ?down|good ?night|going to bed)/i, windDown],
+ [/(motivat|lift me|encourage|push me|inspire|feeling low|i'?m down|doubt|why am i)/i, motivate],
+ [/(what should i do|where do i start|what do i do|first thing|one thing|which one first|help me decide|what matters|what'?s most important)/i, ()=>{
+   setTab('urgent'); setMode('work');
+   const h=hots(), pick=h[0]||KB.now[0];
+   if(!pick){ respond(`<b>Nothing is pressing, Guhan.</b><br><br>That is worth noticing before you go looking for something that is.`,
+     `Nothing is pressing, Guhan. That is worth noticing before you go looking for something that is.`,'warm'); return; }
+   const next=upcoming()[0];
+   respond(`<b>This one.</b><br><br><b>${esc(pick.t)}</b><br>${esc(pick.d)}<br><br>`+
+     (h.length>1?`${h.length-1} other${h.length===2?'':'s'} ${h.length===2?'is':'are'} burning, but they can wait an hour. `:'')+
+     (next?`And ${esc(next.n.split(/[,—]/)[0])} is ${days(next.d)} days out, so it isn't today's problem.`:''),
+     `This one, Guhan. ${pick.t}. ${pick.d} `+
+     (h.length>1?`${h.length-1} other${h.length===2?'':'s'} are burning, but they can wait an hour. `:'')+
+     (next?`And ${next.n.split(/[,—]/)[0]} is ${days(next.d)} days out, so it isn't today's problem.`:''),'urgent'); }],
+ [/(brief|today|morning|status|where.*stand|going on)/i, brief],
+ [/(overdue|urgent|burning|\bnow\b|fire|most important|priorit)/i, ()=>listBlock(hots().length?hots():KB.now,"Here's what's waiting on you",'urgent')],
+ [/(week|this week|coming days|clash|conflict)/i, ()=>listBlock(KB.week,"Across this week",'today')],
+ [/(when|countdown|horizon|deadline|date|wcnr|tancon|iancon|samvaad|mgm|conference|travel)/i, countdown],
+ [/(health|weight|kilo|sleep|walk|fitness|diet)/i, ()=>{ setTab('health'); topicSay('health_note','Your health'); }],
+ [/(rehab|gym|floor|centre|center|therapist|station|ramp)/i, ()=>topicSay('rehab','The Floor Two gym')],
+ [/(goal|ambition|plan|future|frcp|award)/i, ()=>topicSay('goals',"What you're building")],
+ [/(cv|curriculum|publication|paper)/i, ()=>topicSay('cv','Your CV')],
+ [/(visa|korea|daegu|passport)/i, ()=>topicSay('visa','The Korea visa')],
+ [/(who are you|your name|what are you|astra)/i, ()=>respond(
+   `I'm <b>Astra</b>. I hold your commitments, your deadlines and your goals, I bring you one new idea each morning, and when the day has been long I can slow you down again. Everything I know is current as of <b>${esc(KB.updated)}</b>.`,
+   `I'm Astra. I hold your commitments, your deadlines and your goals, I bring you one new idea each morning, and when the day has been long I can slow you down again. Everything I know is current as of ${KB.updated}.`,'warm')],
+ [/(thank|thanks|bye)/i, ()=>respond(`Any time, Guhan. I'll be right here.`,null,'warm')],
+ [/(help|what can you|commands)/i, ()=>respond(
+   `Ask me for your <b>brief</b>, what's <b>urgent</b>, your <b>week</b>, your <b>deadlines</b>, or today's <b>idea</b>. For the work: the <b>rehab centre</b>, your <b>CV</b>, the <b>Korea visa</b>, your <b>goals</b>, your <b>health</b>.<br><br>Say <b>breathe</b>, <b>reset</b>, <b>sleep</b> or <b>motivate me</b> when you need the other thing.<br><br>And you can just tell me something — start with <b>note</b> and it goes to Claude.<br><br>When you have finished something, open its card and tap <b>mark done</b>, or just say <b>done</b> and the rest of it. It leaves every list here at once and comes off the sheet within five minutes.`,
+   `Ask me for your brief, what's urgent, your week, your deadlines, or today's idea. For the work, the rehab centre, your CV, the Korea visa, your goals, your health. Say breathe, reset, sleep or motivate me when you need the other thing. And you can just tell me something, starting with note. And when you have finished something, open its card and tap mark done, or just say done and the rest of it. It leaves every list here at once and comes off the sheet within five minutes.`,'warm')]
+];
+
+function handle(q){
+  q=String(q||'').trim(); if(!q) return;
+  bubble(q,true);                       // what he said, kept alongside what she said
+  const r=ROUTES.find(([re])=>re.test(q));
+  if(r){ r[1](q); return; }
+  /* anything she doesn't recognise is treated as something he's telling her,
+     not as a failed command — that is the difference between a menu and an assistant */
+  if(q.split(/\s+/).length>=3){ takeNote(q,'note'); return; }
+  respond(`I didn't quite catch that one, Guhan. Try <b>brief</b>, <b>urgent</b>, <b>idea</b>, <b>deadlines</b> — or start with <b>note</b> and I'll pass it to Claude.`,
+    `I didn't quite catch that one, Guhan. Try brief, urgent, idea, or deadlines. Or start with note, and I'll pass it to Claude.`,'warm');
+}
+/* ══════════ THE LAUNCH ══════════
+   She is not a page that appears. She arrives: a point of light, then a form,
+   then her name, then the state of your day. Under four seconds, skippable. */
+const bcv=document.getElementById('bfx'), bctx=bcv.getContext('2d');
+let BW=260,BH=260, booting=true, bootT0=0, bootDone=false;
+function resizeBoot(){
+  const b=document.getElementById('bootBox'); if(!b) return;
+  BW=b.clientWidth||260; BH=b.clientHeight||260;
+  bcv.width=BW*DPR; bcv.height=BH*DPR; bctx.setTransform(DPR,0,0,DPR,0,0);
+}
+function endBoot(){
+  if(bootDone) return; bootDone=true;
+  const b=document.getElementById('boot');
+  b.classList.add('out');                          // her light goes first
+  setTimeout(()=>{ booting=false; b.classList.add('gone');   // then the dark lifts
+    const pane=document.getElementById('pane-'+TAB);
+    if(pane){ pane.classList.remove('on'); void pane.offsetWidth; pane.classList.add('on'); }
+  },400);
+  setTimeout(()=>{ if(b) b.remove(); },1150);
+}
+function runBoot(){
+  resizeBoot();
+  (function(){ const im=new Image();
+    im.onload=()=>{ const b=document.getElementById('boot');
+      if(b) b.style.backgroundImage='url(plates/launch.jpg)'; };
+    im.src='plates/launch.jpg'; })();
+  const nm=document.getElementById('bname');
+  'ASTRA'.split('').forEach((ch,i)=>{
+    const sp=document.createElement('span'); sp.textContent=ch;
+    sp.style.animationDelay=(900+i*95)+'ms'; nm.appendChild(sp);
+  });
+  setTimeout(()=>{
+    const sub=document.getElementById('bsub'); if(!sub) return;   // skipped already
+    sub.textContent=`${greet()}, Guhan.`; sub.classList.add('on');
+  },1650);
+  const log=document.getElementById('blog');
+  const lines=[
+    ()=>`${esc(PLACE)} <b>${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</b>`,
+    ()=>{ const w=wxLine(); return w?`<b>${esc(w)}</b>`:`feed <b>${feedState==='live'?'live':'offline copy'}</b>`; },
+    ()=>{ const h=hots().length, n=KB.now.length;
+          return h?`burning <b>${h}</b> · today <b>${n}</b>`:`today <b>${n}</b>`; }
+  ];
+  lines.forEach((fn,i)=>setTimeout(()=>{
+    if(bootDone) return;
+    const d=document.createElement('div'); d.innerHTML=fn(); log.appendChild(d);
+  },2050+i*380));
+  setTimeout(endBoot,4000);
+  document.getElementById('boot').addEventListener('click',endBoot);
+}
+
+/* ══════════ RENDER LOOP ══════════ */
+function loop(ts){
+  const dt=Math.min(50,ts-last||16); last=ts; T=ts;
+  env+=(envT-env)*.22; envT*=.90; emph*=.93;
+  paA=mixc(paA,palT.a,.035); paB=mixc(paB,palT.b,.035);
+  tickBreath();
+  stepFX(dt);
+  if(speaking && typeof hostedLevel==='function' && hostedAnalyser){
+    const lv=hostedLevel(); envT=Math.max(envT,lv);
+    if(lv>.30 && Math.random()<.34) pokeForm(.35+lv*.7);
+  }
+  const glow=speaking?Math.max(env,.35):(listening?.34+Math.sin(T/240)*.16:(breath?.18+bScale*.34:.12+Math.sin(T/2100)*.05));
+  paintSky(T);
+  if(booting){
+    if(!bootT0) bootT0=ts;
+    const e=Math.min(1,(ts-bootT0)/1900);            // ignition curve
+    const ease=e<.5?4*e*e*e:1-Math.pow(-2*e+2,3)/2;
+    const S=Math.min(BW,BH)*.40*(0.06+ease*0.94);
+    const bg=0.16+ease*0.72+Math.sin(ts/380)*0.05*ease;
+    bctx.clearRect(0,0,BW,BH);
+    if(e>0.02) drawForm(bctx,BW/2,BH/2,S,bg);
+    if(e>0.15 && e<0.9 && Math.random()<0.5) pokeForm(0.2+Math.random()*0.5);
+    /* the arrival: dust first, then fire climbing, then two cracks of lightning */
+    if(e<0.34)      setFX(0, 0.10+e*1.2, 0.35+e*1.1);
+    else if(e<0.80) setFX(0.10, 1.15, 1.05);
+    else            { setFX(0.85, 0.75, 1.00); if(Math.random()<0.16) spawnBolt(); }
+  }
+  ctx.clearRect(0,0,CW,CH);
+  drawForm(ctx,CW/2,CH/2,Math.min(CW,CH)*.40,glow);
+  if(document.getElementById('zen').classList.contains('on')){
+    zctx.clearRect(0,0,ZW,ZH); drawForm(zctx,ZW/2,ZH/2,Math.min(ZW,ZH)*.38,glow); }
+  requestAnimationFrame(loop);
+}
+function setStatus(s){
+  const hl=document.getElementById('hline');
+  if(s==='listening') hl.textContent='listening…';
+  else if(s==='standing by'&&!speaking) hl.textContent=`${greet()}, Guhan`;
+}
+
+/* ══════════ TAPS ══════════ */
+document.addEventListener('click',e=>{
+  const go=e.target.closest('[data-go]');
+  if(go){ setTab(go.dataset.go,true); return; }
+  const q=e.target.closest('[data-q]');
+  if(q){ handle(q.dataset.q); return; }
+  /* before the generic card handler, or opening the card would swallow it */
+  const dn=e.target.closest('[data-done]');
+  if(dn){
+    e.stopPropagation();
+    const [k,i]=dn.dataset.done.split(':');
+    const it=listFor(k)[+i];
+    if(it) markDone(it);
+    return;
+  }
+  const rd=e.target.closest('[data-read]');
+  if(rd){ const k=rd.dataset.read;
+    if(k==='events') return countdown();
+    const arr = k==='hot'?hots():KB[k]||[];
+    return listBlock(arr, k==='now'?'Here is what is waiting on you':k==='hot'?"Here's what's burning":'Across this week'); }
+  const ev=e.target.closest('[data-ev]');
+  if(ev){ const it=upcoming()[+ev.dataset.ev]; if(!it) return;
+    setMode('work');
+    respond(`<b>${esc(it.n)}</b><br><br>${days(it.d)} days away · ${esc(it.w)}`,
+            `${it.n}. ${days(it.d)} days away. ${it.w}`,'warm'); return; }
+  const tp=e.target.closest('[data-t]');
+  if(tp){ return topicSay(tp.dataset.t, tp.textContent); }
+  const id=e.target.closest('[data-idea]');
+  if(id){ return readIdea(); }
+  const c=e.target.closest('.card');
+  if(c){ const open=c.classList.contains('on');
+    document.querySelectorAll('.card.on').forEach(x=>{ if(x!==c) x.classList.remove('on'); });
+    if(!open){ c.classList.add('on');
+      const arr=listFor(c.dataset.k); const it=arr&&arr[+c.dataset.i];
+      if(it){ setMode('work'); speak(it.t?`${it.t}. ${it.d||it.b||''}`:`${it.h}. ${it.b}`);
+              bubble(it.t||it.h,false,true); }   // quiet: leave the board visible
+      /* Expanding a card near the bottom pushes its detail, and the mark-done
+         control with it, under the footer. Bring it back up once the layout
+         has settled — but only when it is actually out of sight. */
+      requestAnimationFrame(()=>{
+        const r=c.getBoundingClientRect();
+        const foot=(document.querySelector('footer')||{}).offsetHeight||0;
+        if(r.bottom > innerHeight - foot - 8) c.scrollIntoView({block:'end',behavior:'smooth'});
+      });
+    } else { c.classList.remove('on'); speechSynthesis.cancel(); speaking=false; }
+  }
+});
+document.getElementById('orbBox').onclick=()=>{ setTab('home',true); };
+document.getElementById('zx').onclick=()=>{ stopBreath(); speechSynthesis.cancel(); speaking=false; };
+document.querySelector('main').addEventListener('scroll',e=>{ scrollY=e.target.scrollTop; },{passive:true});
+
+/* swipe between tabs */
+(function(){
+  const m=document.querySelector('main'); let x0=null,y0=null,pull=0,armed=false;
+  const pill=document.getElementById('ptr');
+  m.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=m.scrollTop<=0?e.touches[0].clientY:null;
+    pull=0; armed=false; },{passive:true});
+  m.addEventListener('touchmove',e=>{
+    if(y0!==null){ pull=e.touches[0].clientY-y0;
+      if(pull>0){ armed=pull>76; pill.style.opacity=Math.min(1,pull/70);
+        pill.style.transform=`translate(-50%,${Math.min(46,pull*.45)}px)`;
+        pill.textContent=armed?'release to refresh':'pull to refresh'; } }
+  },{passive:true});
+  const end=e=>{
+    if(armed) refreshNow(true);
+    else if(x0!==null&&e.changedTouches){
+      const dx=e.changedTouches[0].clientX-x0;
+      if(Math.abs(dx)>62&&Math.abs(pull)<40){
+        const i=TABS.findIndex(t=>t.k===TAB);
+        const j=dx<0?Math.min(TABS.length-1,i+1):Math.max(0,i-1);
+        if(j!==i) setTab(TABS[j].k,true);
+      }
+    }
+    x0=null;y0=null;pull=0;armed=false;
+    pill.style.opacity=0; pill.style.transform='translate(-50%,0)';
+  };
+  m.addEventListener('touchend',end,{passive:true});
+  m.addEventListener('touchcancel',end,{passive:true});
+})();
+
+/* ══════════ INPUT ══════════ */
+const QK=[["Brief","brief"],["Urgent","urgent"],["Today's idea","idea"],["This week's reading","learn"],["Deadlines","countdown"],
+  ["Motivate me","motivate"],["Breathe","breathe"],["Reset · 60s","reset"],["Wind down","wind down"],["What's new","refresh"],["Deep sweep","deep sweep"]];
+/* the empty-thread hint should mention it, or he will never find it */
+const qk=document.getElementById('qk');
+QK.forEach(([l,q])=>{const b=document.createElement('div');b.className='qc';b.textContent=l;b.onclick=()=>handle(q);qk.appendChild(b);});
+
+/* ── WHY THIS IS NOT JUST onclick ──
+   On a phone, the first tap on a button sitting beside a focused input is
+   normally thrown away: the input blurs, the keyboard collapses, the footer
+   rises forty percent of the screen, and the tap lands where the button no
+   longer is. You press the arrow, nothing happens, you press it again and it
+   works — which is exactly what "not working immediately" feels like.
+   Firing on pointerdown, and refusing the blur that would follow, means the
+   first press always counts and the keyboard never flickers. The click that
+   comes after is swallowed so nothing fires twice. */
+const ask=document.getElementById('ask');
+const sendBtn=document.getElementById('send');
+let firedAt=0;
+function fire(){
+  const v=ask.value.trim(); if(!v) return;
+  ask.value=''; firedAt=Date.now();
+  handle(v);
+  /* he nearly always has a second thing to say, so the box keeps the keyboard */
+  try{ ask.focus({preventScroll:true}); }catch(_){ try{ ask.focus(); }catch(__){} }
+}
+ask.addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.keyCode===13){ e.preventDefault(); fire(); }
+});
+if(window.PointerEvent){
+  sendBtn.addEventListener('pointerdown',e=>{ e.preventDefault(); fire(); });
+}
+sendBtn.addEventListener('click',e=>{
+  e.preventDefault();
+  if(Date.now()-firedAt<700) return;      // pointerdown already dealt with it
+  fire();
+});
+
+/* The talk sheet is told how much room the footer takes so it can stop just
+   above it. Measured rather than guessed, because the chip strip wraps
+   differently on every phone and the safe-area inset is not knowable here. */
+function measureFooter(){
+  const f=document.querySelector('footer'); if(!f) return;
+  document.documentElement.style.setProperty('--footh', f.offsetHeight+'px');
+}
+measureFooter();
+addEventListener('resize',measureFooter);
+addEventListener('orientationchange',()=>setTimeout(measureFooter,260));
+if(window.ResizeObserver){ try{ new ResizeObserver(measureFooter).observe(document.querySelector('footer')); }catch(_){ } }
+/* On a phone the keyboard does not always resize the page, so the footer can
+   end up underneath it. Where the browser will tell us (everything current
+   except old Safari), the whole footer is lifted by exactly the keyboard's
+   height and the sheet follows it up. */
+if(window.visualViewport){
+  const vv=window.visualViewport;
+  const lift=()=>{
+    const k=Math.max(0, innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--kb', k+'px');
+    document.body.classList.toggle('kb', k>90);
+    measureFooter();
+  };
+  vv.addEventListener('resize',lift); vv.addEventListener('scroll',lift); lift();
+}
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const mic=document.getElementById('mic'); let rec=null;
+const LOCAL=location.protocol==='file:';
+if(SR){
+  rec=new SR(); rec.lang='en-IN'; rec.interimResults=false;
+  rec.onstart=()=>{listening=true;brow=.55;mic.classList.add('rec');setStatus('listening');};
+  rec.onend=()=>{listening=false;brow=0;mic.classList.remove('rec');if(!speaking)setStatus('standing by');};
+  rec.onresult=e=>handle(e.results[0][0].transcript);
+  rec.onerror=e=>{listening=false;mic.classList.remove('rec');setStatus('standing by');
+    if(e.error==='not-allowed'||e.error==='service-not-allowed')
+      respond(LOCAL?`<b>The microphone is blocked, Guhan — but not by me.</b><br><br>You've opened me as a downloaded file, and browsers restrict the microphone outside <b>https</b>. Everything else works.`
+        :`<b>Microphone permission was declined.</b><br><br>Allow it in your browser settings and tap the microphone again.`,null,'care'); };
+  mic.onclick=()=>{ if(listening){rec.stop();return;} speechSynthesis.cancel(); speaking=false; try{rec.start()}catch(_){} };
+} else mic.onclick=()=>respond(`Voice input needs Chrome or Safari, Guhan. You can type to me instead.`,null,'warm');
+
+/* ══════════ TOOLS ══════════ */
+const tv=document.getElementById('tVoice');
+tv.onclick=()=>{voiceOn=!voiceOn;tv.textContent=voiceOn?'sound':'muted';tv.classList.toggle('act',voiceOn);
+  if(!voiceOn){speechSynthesis.cancel(); if(typeof stopHosted==='function') stopHosted();
+    speaking=false;setStatus('standing by');}};
+document.getElementById('tVox').onclick=openVoices;
+document.getElementById('vclose').onclick=closeVoices;
+document.getElementById('vsheet').addEventListener('click',e=>{
+  if(e.target.id==='vsheet') return closeVoices();
+  if(e.target.id==='vall') return toggleAllVoices();
+  const h=e.target.closest('.hrow, [data-hv]');
+  if(h){
+    if(h.dataset.hv==='__off'){ hostedOn=false; stopHosted(); openVoices(); labelVoice();
+      return speak(`Back to the phone's voice, Guhan.`,'warm'); }
+    hostedOn=true; return auditionHosted(h.dataset.hv);
+  }
+  const r=e.target.closest('.vrow'); if(!r) return;
+  const v=VLIST.find(x=>x.name===r.dataset.vn); if(v) pickThisVoice(v);
+});
+document.getElementById('tFeed').onclick=()=>refreshNow(true);
+document.getElementById('sync').onclick=()=>refreshNow(true);
+document.getElementById('tTalk').onclick=()=>{ talkOpen?closeTalk():openTalk(); };
+document.getElementById('tx').onclick=closeTalk;
+document.getElementById('tgrab').onclick=closeTalk;
+document.getElementById('tthread').addEventListener('click',e=>{
+  const r=e.target.closest('[data-rp]'); if(!r) return;
+  const m=THREAD[+r.dataset.rp]; if(m&&!m.mine) speak(m.spoken||m.html, m.feel);
+});
+document.getElementById('tStop').onclick=()=>{speechSynthesis.cancel();
+  if(typeof stopHosted==='function') stopHosted(); speaking=false;
+  if(rec&&listening)rec.stop(); if(breath)stopBreath(); setStatus('standing by');};
+function labelVoice(){const el=document.getElementById('tVox'); if(!el)return;
+  if(typeof hostedAvailable==='function' && hostedAvailable() && hostedState!=='absent'){
+    const h=(typeof HOSTED_VOICES!=='undefined')&&HOSTED_VOICES.find(v=>v[0]===hostedVoice);
+    el.textContent=(h?h[1]:hostedVoice)+' \u00b7 real'; return; }
+  if(VOICE){const n=VOICE.name.replace(/\s*\(.*\)/,'').replace(/^Microsoft |^Google /,'').slice(0,13);
+    el.textContent=n+(VLIST.length>1?' '+(VLIST.indexOf(VOICE)+1)+'/'+VLIST.length:'');}
+  else el.textContent='voice';}
+[300,900,2000,4000].forEach(d=>setTimeout(()=>{
+  if(!VLIST.length||!VOICE) VOICE=pickVoice();
+  if(PREF.voice){ const v=VLIST.find(x=>x.name===PREF.voice); if(v) VOICE=v; }
+  labelVoice();},d));
+if('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged',()=>{
+  const keep=VOICE&&VOICE.name;
+  VLIST=(speechSynthesis.getVoices()||[]).filter(x=>/^en/i.test(x.lang)).sort((a,b)=>rankVoice(b)-rankVoice(a));
+  VOICE=(keep&&VLIST.find(v=>v.name===keep))||VLIST[0]||VOICE;
+  labelVoice();
+  if(document.getElementById('vsheet').classList.contains('on')) openVoices();  // redraw it live
+});
+
+/* ══════════ NOTIFICATIONS ══════════ */
+const VAPID="BCuX1rPrbHdXozBZ0BwHDOddlvd0uWbu89ewakaF7ghRzzIvTDBx0v21q0U2G6-xSvuuBUvtkezGdTXXqMiut6g";
+function b64url(s){ const p='='.repeat((4-s.length%4)%4);
+  const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...b].map(c=>c.charCodeAt(0))); }
+function pushLabel(t){ const el=document.getElementById('tPush'); if(el) el.textContent='notify '+t; }
+async function initPush(ask){
+  const el=document.getElementById('tPush');
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){ pushLabel('n/a'); return; }
+  let reg;
+  try{ reg=await navigator.serviceWorker.register('sw.js'); }catch(e){ pushLabel('n/a'); return; }
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const existing=await reg.pushManager.getSubscription();
+  if(existing){ pushLabel('on'); el.classList.add('act'); return; }
+  if(!ask){ pushLabel('off'); return; }
+  if(/iPad|iPhone|iPod/.test(navigator.userAgent) && !standalone){
+    respond(`<b>Almost, Guhan.</b><br><br>On an iPhone I can only send notifications once I'm on your Home Screen. Tap <b>Share</b>, then <b>Add to Home Screen</b>, open me from the icon, and tap this again.`,
+      `Almost, Guhan. On an iPhone I can only send notifications once I'm on your home screen. Tap share, then add to home screen, open me from the icon, and tap this again.`,'warm');
+    return;
+  }
+  if(VAPID.indexOf('__')===0){ toast('her key isn\'t installed yet'); return; }
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){ pushLabel('blocked'); return; }
+  try{
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64url(VAPID)});
+    await sendNote(JSON.stringify(sub),'push-subscription');
+    pushLabel('on'); el.classList.add('act');
+    respond(`<b>Done, Guhan.</b><br><br>I'll reach you now even when you're not looking — the morning brief, and anything that turns urgent during the day.`,
+      `Done, Guhan. I'll reach you now even when you're not looking. The morning brief, and anything that turns urgent during the day.`,'bright');
+  }catch(e){ pushLabel('failed'); }
+}
+document.getElementById('tPush').onclick=()=>initPush(true);
+
+/* ══════════ ICON ══════════ */
+(function(){const ic=document.createElement('canvas');ic.width=ic.height=512;const g=ic.getContext('2d');
+  const bg=g.createRadialGradient(256,220,10,256,256,320);bg.addColorStop(0,'#241a12');bg.addColorStop(1,'#04060a');
+  g.fillStyle=bg;g.fillRect(0,0,512,512);
+  for(let i=0;i<3;i++){g.beginPath();g.arc(256,256,140+i*30,0,6.283);
+    g.strokeStyle=`rgba(${i?'176,196,255':'255,222,186'},${.8-i*.22})`;g.lineWidth=6-i*1.4;g.stroke();}
+  g.beginPath();g.arc(256,256,66,0,6.283);g.fillStyle='#ffdeba';g.shadowBlur=46;g.shadowColor='#ffdeba';g.fill();
+  document.getElementById('ic').href=ic.toDataURL('image/png'); })();
+
+function tick(){ document.getElementById('ctime').textContent=
+  new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
+
+/* ══════════ BOOT ══════════ */
+resizeSky(); resize(); tick(); setInterval(tick,20000); setInterval(agoTick,20000);
+requestAnimationFrame(loop);
+setTab(QS.get('tab')||'home');
+/* ?quick=1 is what the home-screen shortcuts open. He is glancing, often on
+   the cover screen between patients: straight to the pane, no launch
+   sequence, and she does not start talking. */
+const QUICK=QS.has('quick');
+runBoot();
+if(QUICK) endBoot();
+setTimeout(()=>{ if(!speaking) restFX(); },4600);
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&Date.now()-lastSync>90000){ refreshNow(false); flushPending(); }});
+addEventListener('focus',()=>{ if(Date.now()-lastSync>90000){ refreshNow(false); flushPending(); }});
+setInterval(()=>{ if(document.visibilityState==='visible') refreshNow(false); },300000);
+
+loadFeed().then(ok=>{
+  if(ok) lastSync=Date.now();
+  paintAll();
+  loadWeather().then(()=>paintAll());
+  initPush(false);
+  const h=new Date().getHours(), late=h>=22||h<4;
+  const n=KB.now.length, next=upcoming()[0], idea=(KB.ideas||[])[0];
+  const line = late
+    ? `It's late, Guhan. There are ${n} things waiting, but none of them need you tonight. Tap breathe, or wind down.`
+    : `${greet()}, Guhan. ${n} thing${n===1?'':'s'} need${n===1?'s':''} you today${next?`, and ${next.n} is ${days(next.d)} days away`:''}.${idea?` There's a new idea waiting for you as well.`:''}`;
+  if(!QUICK) setTimeout(()=>speak(line, late?'care':'warm'),bootDone?600:3600);
+});
+
+</script>
+</body>
+</html>
